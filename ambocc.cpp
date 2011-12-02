@@ -102,6 +102,8 @@ class Softshadow : public SampleScene
     uint _show_progressive;
     int2 _pixel_radius;
 
+	uint _zmin_rpp_scale;
+
     time_t _started_render;
 
     Buffer testBuf;
@@ -200,6 +202,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
+
+  _zmin_rpp_scale = 3;
+  _context["zmin_rpp_scale"]->setUint(_zmin_rpp_scale);
 
   _pixel_radius = make_int2(10,10);
   _context["pixel_radius"]->setInt(_pixel_radius);

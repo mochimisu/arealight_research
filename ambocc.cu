@@ -127,6 +127,7 @@ rtDeclareVariable(uint,           err_vis, , );
 rtDeclareVariable(uint,           normal_rpp, , );
 rtDeclareVariable(uint,           brute_rpp, , );
 rtDeclareVariable(uint,           show_progressive, , );
+rtDeclareVariable(uint,           zmin_rpp_scale, , );
 rtDeclareVariable(int2,          pixel_radius, , );
 
 RT_PROGRAM void pinhole_camera() {
@@ -138,7 +139,7 @@ RT_PROGRAM void pinhole_camera() {
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
 
   if(frame == 0)
-    closest_intersection[launch_index] = 10;
+    closest_intersection[launch_index] = 100.0;
 
 
   float zmin = closest_intersection[launch_index];
@@ -148,10 +149,12 @@ RT_PROGRAM void pinhole_camera() {
   }
 
   bool newInfo = false;
+
   if (frame < normal_rpp)
     newInfo = true;
-  else if (zmin < 0.05 && frame < brute_rpp)
+  else if (zmin < 0.05 && frame < (float)zmin_rpp_scale/zmin)//&& frame < brute_rpp)
     newInfo = true;
+
 
 
   float4 acc_val = accum_buffer[launch_index];
@@ -196,7 +199,7 @@ RT_PROGRAM void pinhole_camera() {
   float sumWeight = 0.0;
 
   //i guess just blur here for now... inefficient, but gets the point across
-  if (frame > brute_rpp || (frame > 0 && show_progressive)) {
+  if (blur_occ && (frame > brute_rpp || (frame > 0 && show_progressive))) {
     int numBlurred = 0;
 
     for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
@@ -231,11 +234,6 @@ RT_PROGRAM void pinhole_camera() {
       //blurred_occ = make_float4(closest_intersection[launch_index]/10.0);
       blurred_occ = make_float4(prd.shadow_intersection/10.0);
       */
-    if(!blur_occ)
-      blurred_occ = acc_val_occ;
-  } else if (frame == 0){
-    closest_intersection[launch_index] = 100000.0f;
-    blurred_occ = acc_val_occ;
   } else {
     blurred_occ = acc_val_occ;
   }
@@ -243,6 +241,8 @@ RT_PROGRAM void pinhole_camera() {
 
   output_buffer[launch_index] = make_color( make_float3(acc_val)*make_float3(blurred_occ.x, blurred_occ.y, blurred_occ.z));
 
+  if (newInfo && err_vis)
+	  output_buffer[launch_index] = make_color( make_float3(0,1,0) );
 
 }
 
