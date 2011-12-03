@@ -115,11 +115,11 @@ rtBuffer<uchar4, 2>              output_buffer;
 
 rtDeclareVariable(float3, bg_color, , );
 
-rtBuffer<float4, 2>              accum_buffer;
-rtBuffer<float4, 2>              accum_buffer_occ;
+rtBuffer<float4, 2>               accum_buffer;
+rtBuffer<float4, 2>               accum_buffer_occ;
 //rtBuffer<float4, 2>              accum_buffer_occ_h;
-rtBuffer<float3, 2>              world_loc;
-rtBuffer<float, 2>               closest_intersection;
+rtBuffer<float3, 2>               world_loc;
+rtBuffer<float, 2>                closest_intersection;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -127,8 +127,10 @@ rtDeclareVariable(uint,           err_vis, , );
 rtDeclareVariable(uint,           normal_rpp, , );
 rtDeclareVariable(uint,           brute_rpp, , );
 rtDeclareVariable(uint,           show_progressive, , );
-rtDeclareVariable(uint,           zmin_rpp_scale, , );
-rtDeclareVariable(int2,          pixel_radius, , );
+rtDeclareVariable(float,          zmin_rpp_scale, , );
+rtDeclareVariable(int2,           pixel_radius, , );
+
+rtBuffer<uint, 2>                 conv;
 
 RT_PROGRAM void pinhole_camera() {
 
@@ -152,7 +154,7 @@ RT_PROGRAM void pinhole_camera() {
 
   if (frame < normal_rpp)
     newInfo = true;
-  else if (zmin < 0.05 && frame < (float)zmin_rpp_scale/zmin)//&& frame < brute_rpp)
+  else if (zmin < 0.05 && frame < (float)zmin_rpp_scale/zmin && frame < brute_rpp)
     newInfo = true;
 
 
@@ -162,6 +164,7 @@ RT_PROGRAM void pinhole_camera() {
   float3 cur_world_loc = make_float3(0.0);
 
   if (newInfo) {
+    conv[launch_index] = 1;
 
     optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon );
 
@@ -190,6 +193,7 @@ RT_PROGRAM void pinhole_camera() {
     zmin = min(zmin, prd.shadow_intersection);
     closest_intersection[launch_index] = zmin;
   } else {
+    conv[launch_index] = 0;
     cur_world_loc = world_loc[launch_index];
   }
 

@@ -86,6 +86,8 @@ class Softshadow : public SampleScene
     Buffer       _accum_buffer_occ;
     GeometryGroup geomgroup;
 
+    Buffer _conv_buffer;
+
     unsigned int _width;
     unsigned int _height;
     std::string   texture_path;
@@ -102,7 +104,8 @@ class Softshadow : public SampleScene
     uint _show_progressive;
     int2 _pixel_radius;
 
-	uint _zmin_rpp_scale;
+    float _zmin_rpp_scale;
+    bool _converged;
 
     time_t _started_render;
 
@@ -158,8 +161,12 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _context["accum_buffer_occ_h"]->set( _accum_buffer_occ_h );
 
   // Closest ray intersection time buffer
-  _accum_buffer_occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  _context["closest_intersection"]->set( _accum_buffer_occ );
+  Buffer _closest_intersection = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["closest_intersection"]->set( _closest_intersection );
+
+  //check for convergence
+  _conv_buffer = _context->createBuffer( RT_BUFFER_OUTPUT, RT_FORMAT_UNSIGNED_INT, _width, _height ); 
+  _context["conv"]->set( _conv_buffer );
 
   // gauss values
   Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, 65);
@@ -197,14 +204,14 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _show_progressive = 0;
   _context["show_progressive"]->setUint(_show_progressive);
 
-  _normal_rpp = 40;
-  _brute_rpp = 200;
+  _normal_rpp = 80;
+  _brute_rpp = 300;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
 
-  _zmin_rpp_scale = 3;
-  _context["zmin_rpp_scale"]->setUint(_zmin_rpp_scale);
+  _zmin_rpp_scale = 1;
+  _context["zmin_rpp_scale"]->setFloat(_zmin_rpp_scale);
 
   _pixel_radius = make_int2(10,10);
   _context["pixel_radius"]->setInt(_pixel_radius);
@@ -349,20 +356,38 @@ void Softshadow::trace( const RayGenCameraData& camera_data )
   RTsize buffer_width, buffer_height;
   buffer->getSize( buffer_width, buffer_height );
   _context["frame"]->setUint( _frame_number );
+
+
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
       static_cast<unsigned int>(buffer_height) );
 
   if (_frame_number == _normal_rpp) {
     time_t end;
     time(&end);
-    std::cout << "Blurred rays done: " << difftime(end,_started_render) << "s" << std::endl;
+    std::cout << "Blurred rays done: " << (float)difftime(end,_started_render) << "s" << std::endl;
   }
+
 
   if (_frame_number == _brute_rpp) {
     time_t end;
     time(&end);
     std::cout << "Brute force Done: " << difftime(end,_started_render) << "s" << std::endl;
   }
+
+  if (_frame_number == _brute_rpp+1) {
+    time_t end;
+    time(&end);
+    std::cout << "Total render done (including blur): " << difftime(end,_started_render) << "s" << std::endl;
+  }
+
+/*
+  unsigned int unconverged = 0;
+  unsigned int * conv = reinterpret_cast<unsigned int*>( _conv_buffer->map() );
+  for (unsigned int i = 0; i < _width * _height; ++i)
+    unconverged += conv[i];
+  _conv_buffer->unmap();
+  std::cout << "Unconverged: " << unconverged << std::endl;
+  */
 }
 
 
@@ -387,6 +412,7 @@ void Softshadow::resetAccumulation()
 {
   _frame_number = 0;
   _context["frame"]->setUint( _frame_number );
+  _converged = false;
   time(&_started_render);
 }
 
