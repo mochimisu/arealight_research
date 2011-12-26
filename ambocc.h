@@ -71,6 +71,9 @@ struct PerRayData_radiance
 
   float shadow_intersection;
   bool hit;
+
+	int sqrt_num_samples;
+	bool brdf;
 };
 
 struct PerRayData_shadow

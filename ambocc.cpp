@@ -98,6 +98,7 @@ class Softshadow : public SampleScene
 
     uint _blur_occ;
     uint _err_vis;
+		uint _view_zmin;
 
     uint _normal_rpp;
     uint _brute_rpp;
@@ -200,12 +201,15 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 
   _err_vis = 0;
   _context["err_vis"]->setUint(_err_vis);
+	
+	_view_zmin = 0;
+	_context["view_zmin"]->setUint(_view_zmin);
 
   _show_progressive = 0;
   _context["show_progressive"]->setUint(_show_progressive);
 
-  _normal_rpp = 80;
-  _brute_rpp = 300;
+  _normal_rpp = 4;
+  _brute_rpp = 4;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -456,6 +460,15 @@ bool Softshadow::keyPressed(unsigned char key, int x, int y) {
       else
         std::cout << "Err vis: Off" << std::endl;
       return true;
+		case 'Z':
+		case 'z':
+			_view_zmin = 1-_view_zmin;
+			_context["view_zmin"]->setUint(_view_zmin);
+			if (_view_zmin)
+				std::cout << "View ZMin: On" << std::endl;
+			else
+				std::cout << "View ZMin: Off" << std::endl;
+			return true;
     case 'P':
     case 'p':
       _show_progressive = 1-_show_progressive;
