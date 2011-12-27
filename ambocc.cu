@@ -217,25 +217,27 @@ RT_PROGRAM void pinhole_camera() {
 		if (blur_occ && (frame > 2)) {
 				int numBlurred = 0;
 
-				for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
-						for(int j=-pixel_radius.y; j < pixel_radius.y; j++) {
-								if(launch_index.x + i > 0 && launch_index.y + j > 0) {
-										uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
-										if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
-												float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
-												//float distance = target_occ.w - prd.t_hit;
-												float3 loca = cur_world_loc;
-												float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
-												float3 diff = loca-locb;
-												float distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
-												if(distancesq < 0)
-														distancesq = -distancesq;
-												if (zmin > 0.0) {
-														float weight = gaussFilter(distancesq,zmin);
-														blurred_occ += weight * target_occ;
-														sumWeight += weight;
-														if (weight > 0)
-																numBlurred += 1;
+				if (zmin > 0.0) {
+						for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
+								for(int j=-pixel_radius.y; j < pixel_radius.y; j++) {
+										if(launch_index.x + i > 0 && launch_index.y + j > 0) {
+												uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
+												if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
+														float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
+														//float distance = target_occ.w - prd.t_hit;
+														float3 loca = cur_world_loc;
+														float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
+														float3 diff = loca-locb;
+														float distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
+														if(distancesq < 0)
+																distancesq = -distancesq;
+														if (distancesq < 0.5) {
+																float weight = gaussFilter(distancesq,zmin);
+																blurred_occ += weight * target_occ;
+																sumWeight += weight;
+																if (weight > 0)
+																		numBlurred += 1;
+														}
 												}
 										}
 								}
