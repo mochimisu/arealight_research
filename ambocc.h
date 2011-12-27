@@ -63,7 +63,6 @@ __device__ __inline__ uchar4 make_color(const float3& c)
 struct PerRayData_radiance
 {
   float3 result;
-  float3 occlusion;
   float  importance;
   int depth;
   float t_hit;
@@ -74,6 +73,7 @@ struct PerRayData_radiance
 
 	int sqrt_num_samples;
 	bool brdf;
+	unsigned int unavg_occ;
 };
 
 struct PerRayData_shadow

@@ -82,8 +82,8 @@ class Softshadow : public SampleScene
     unsigned int  _frame_number;
     unsigned int  _keep_trying;
 
-    Buffer       _accum_buffer;
-    Buffer       _accum_buffer_occ;
+    Buffer       _brdf;
+    Buffer       _occ;
     GeometryGroup geomgroup;
 
     Buffer _conv_buffer;
@@ -150,31 +150,30 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _context["numAvg"]->setUint(1);
 
   // Accumulation buffer
-  _accum_buffer = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
-  _context["accum_buffer"]->set( _accum_buffer );
+  _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
+  _context["brdf"]->set( _brdf );
 
   // Occlusion accumulation buffer
-  _accum_buffer_occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
-  _context["accum_buffer_occ"]->set( _accum_buffer_occ );
-
-  // Occlusion accumulation buffer (horizontally blurred; 4th val is zmin)
-  Buffer _accum_buffer_occ_h = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
-  _context["accum_buffer_occ_h"]->set( _accum_buffer_occ_h );
-
-  // Closest ray intersection time buffer
-  Buffer _closest_intersection = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  _context["closest_intersection"]->set( _closest_intersection );
-
-  //check for convergence
-  _conv_buffer = _context->createBuffer( RT_BUFFER_OUTPUT, RT_FORMAT_UNSIGNED_INT, _width, _height ); 
-  _context["conv"]->set( _conv_buffer );
+  _occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
+  _context["occ"]->set( _occ );
 
   // gauss values
   Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, 65);
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
+	const float gaussian_lookup[65] = { 0.85, 0.82, 0.79, 0.76, 0.72, 0.70, 0.68,
+        0.66, 0.63, 0.61, 0.59, 0.56, 0.54, 0.52,
+        0.505, 0.485, 0.46, 0.445, 0.43, 0.415, 0.395,
+        0.38, 0.365, 0.35, 0.335, 0.32, 0.305, 0.295,
+        0.28, 0.27, 0.255, 0.24, 0.23, 0.22, 0.21,
+        0.2, 0.19, 0.175, 0.165, 0.16, 0.15, 0.14,
+        0.135, 0.125, 0.12, 0.11, 0.1, 0.095, 0.09,
+        0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
+        0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
+        0.003, 0.0 };
 
+	/*
   const float gaussian_lookup[65] = { 0.86466, 0.86418,
     0.86271, 0.86028, 0.85688, 0.85253, 0.84724, 0.84102, 0.83390,
     0.82589, 0.81701, 0.80729, 0.79677, 0.78546, 0.77340, 0.76062,
@@ -185,6 +184,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
     0.25322, 0.23670, 0.22053, 0.20473, 0.18932, 0.17430, 0.15969,
     0.14549, 0.13172, 0.11837, 0.10546, 0.09297, 0.08093, 0.06932,
     0.05815, 0.04740, 0.03709, 0.02719, 0.01772, 0.00866, 0.00000 };
+		*/
 
   for(int i=0; i<65; i++) {
     lookups[i] = gaussian_lookup[i];
@@ -209,7 +209,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _context["show_progressive"]->setUint(_show_progressive);
 
   _normal_rpp = 4;
-  _brute_rpp = 4;
+  _brute_rpp = 8;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);

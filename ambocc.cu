@@ -85,12 +85,13 @@ __device__ __inline__ void sampleUnitHemisphere( const optix::float2& sample,
 
 rtBuffer<float, 1>              gaussian_lookup;
 
-__device__ __inline__ float gaussFilter(float dist, float zmin)
+__device__ __inline__ float gaussFilter(float distsq, float zmin)
 {
 
 		//float scale = 0.5;                  //scale = 2*z_min*omegaShadeMax /omegaVMax
 		float scale = zmin/2.0;
-		float sample = dist/scale;
+		//float sample = dist/scale;
+		float sample = distsq/(scale*scale);
 		if (sample > 0.9999) {
 				return 0.0;
 		}
@@ -112,11 +113,11 @@ rtBuffer<uchar4, 2>              output_buffer;
 
 rtDeclareVariable(float3, bg_color, , );
 
-rtBuffer<float4, 2>               accum_buffer;
-rtBuffer<float4, 2>               accum_buffer_occ;
+rtBuffer<float3, 2>               brdf;
+//divided occlusion, undivided occlusion, zmin, num_samples
+rtBuffer<float4, 2>               occ;
 //rtBuffer<float4, 2>              accum_buffer_occ_h;
 rtBuffer<float3, 2>               world_loc;
-rtBuffer<float, 2>                closest_intersection;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -140,96 +141,97 @@ RT_PROGRAM void pinhole_camera() {
 		PerRayData_radiance prd;
 
 
-		bool newInfo = false;
+		bool shoot_ray = false;
 
 		if (frame == 0) {
-				closest_intersection[launch_index] = 100.0;
+				occ[launch_index] = make_float4(1.0, 1.0, 100000.0, 0.0);
 				prd.sqrt_num_samples = normal_rpp;
 				prd.brdf = true;
-				newInfo = true;
+				shoot_ray = true;
 		}
 
 
-		float zmin = closest_intersection[launch_index];
-
-		if (frame == 1 && zmin < 0.05) {
-				prd.sqrt_num_samples = brute_rpp;
-				prd.brdf = false;
-				newInfo = true;
-		}
+		float4 cur_occ = occ[launch_index];
+		float zmin = cur_occ.z;
 
 		if (zmin < 0) {
 				output_buffer[launch_index] = make_color(bg_color);
 				return;
 		}
-/*
-		if (frame < normal_rpp)
-				newInfo = true;
-		else if (zmin < 0.05 && frame < (float)zmin_rpp_scale/zmin && frame < brute_rpp)
-				newInfo = true;
-*/
 
 
-		float4 acc_val = accum_buffer[launch_index];
-		float4 acc_val_occ = accum_buffer_occ[launch_index];
+		if (frame == 1 && zmin < 0.05) {
+				prd.sqrt_num_samples = brute_rpp;
+				prd.brdf = false;
+				shoot_ray = true;
+		}
+
 		float3 cur_world_loc = make_float3(0.0);
-
-		if (newInfo) {
-				conv[launch_index] = 1;
-
+		
+		if (shoot_ray) {
 				optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon );
 
 				prd.importance = 1.f;
-				prd.occlusion = make_float3(1.f);
+				prd.unavg_occ = 0;
 				prd.depth = 0;
 				prd.hit = false;
 
 				rtTrace(top_object, ray, prd);
 
 				if(!prd.hit) {
-						closest_intersection[launch_index] = -1;
+						occ[launch_index] = make_float4(1,1,-1,0);
 						output_buffer[launch_index] = make_color(bg_color);
 						return;
 				}
 
 				cur_world_loc = prd.world_loc;
 				world_loc[launch_index] = cur_world_loc;
+				if (prd.brdf)
+						brdf[launch_index] = prd.result;
+				if (cur_occ.z == 0) {
+						float num_samples = prd.sqrt_num_samples * prd.sqrt_num_samples;
+						zmin = prd.shadow_intersection;
+						cur_occ = make_float4(prd.unavg_occ / num_samples, prd.unavg_occ, prd.shadow_intersection, num_samples);
+						occ[launch_index] = cur_occ;
+						
+				}
+				else {
+						//float precision loss maybe... but eh
+						float total_undiv_occ = prd.unavg_occ + cur_occ.y;
+						float num_samples = prd.sqrt_num_samples * prd.sqrt_num_samples + cur_occ.w;
+						zmin = min(prd.shadow_intersection, zmin);
+						cur_occ = make_float4(total_undiv_occ / num_samples, total_undiv_occ, zmin, num_samples);
+						occ[launch_index] = cur_occ;
 
-				acc_val += (make_float4(prd.result,0.f) - acc_val)/(frame+1);
-				acc_val_occ += (make_float4(prd.occlusion,prd.t_hit) - acc_val_occ)/(frame+1);
-				accum_buffer[launch_index] = acc_val;
-				accum_buffer_occ[launch_index] = acc_val_occ;
-
-				zmin = min(zmin, prd.shadow_intersection);
-				closest_intersection[launch_index] = zmin;
+				}
 		} else {
-				conv[launch_index] = 0;
 				cur_world_loc = world_loc[launch_index];
 		}
 
-		float4 blurred_occ = make_float4(0.0);
+		float blurred_occ = 0.0;
 		//int2 pixel_radius = make_int2(5,5);
 		//pixel_radius = make_int2(10,10);
 		float sumWeight = 0.0;
 
 		//i guess just blur here for now... inefficient, but gets the point across
-		if (blur_occ && (frame > brute_rpp || (frame > 0 && show_progressive))) {
+		if (blur_occ && (frame > 2)) {
 				int numBlurred = 0;
 
 				for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
 						for(int j=-pixel_radius.y; j < pixel_radius.y; j++) {
 								if(launch_index.x + i > 0 && launch_index.y + j > 0) {
-										if(launch_index.x + i < output_buffer.size().x && launch_index.y + j < output_buffer.size().y) {
-												float4 target_occ = accum_buffer_occ[make_uint2(launch_index.x+i, launch_index.y+j)];
+										uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
+										if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
+												float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
 												//float distance = target_occ.w - prd.t_hit;
 												float3 loca = cur_world_loc;
 												float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
 												float3 diff = loca-locb;
-												float distance = sqrt(diff.x*diff.x + diff.y*diff.y + diff.z*diff.z);
-												if(distance < 0)
-														distance = -distance;
+												float distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
+												if(distancesq < 0)
+														distancesq = -distancesq;
 												if (zmin > 0.0) {
-														float weight = gaussFilter(distance,zmin);
+														float weight = gaussFilter(distancesq,zmin);
 														blurred_occ += weight * target_occ;
 														sumWeight += weight;
 														if (weight > 0)
@@ -241,23 +243,25 @@ RT_PROGRAM void pinhole_camera() {
 				}
 				if(sumWeight > 0)
 						blurred_occ /= sumWeight;
-				if(err_vis && numBlurred < 2)
-						blurred_occ = make_float4(1,0,0,1);
+				if(err_vis && numBlurred < 2) {
+						output_buffer[launch_index] = make_color(make_float3(1,0,0));
+						return;
+				}
 				/*
 					 if(err_vis)
 				//blurred_occ = make_float4(closest_intersection[launch_index]/10.0);
 				blurred_occ = make_float4(prd.shadow_intersection/10.0);
 				 */
 		} else {
-				blurred_occ = acc_val_occ;
+				blurred_occ = occ[launch_index].x;
 		}
 
 
-		output_buffer[launch_index] = make_color( make_float3(acc_val)*make_float3(blurred_occ.x, blurred_occ.y, blurred_occ.z));
+		output_buffer[launch_index] = make_color( brdf[launch_index]*make_float3(blurred_occ));
 		if (view_zmin)
 				output_buffer[launch_index] = make_color( make_float3(zmin) );
 
-		if (newInfo && err_vis)
+		if (shoot_ray && err_vis)
 				output_buffer[launch_index] = make_color( make_float3(0,1,0) );
 
 }
@@ -314,7 +318,6 @@ RT_PROGRAM void closest_hit_radiance3()
 		prd_radiance.t_hit = t_hit;
 		prd_radiance.world_loc = hit_point;
 		prd_radiance.hit = true;
-		float num_samples = prd_radiance.sqrt_num_samples * prd_radiance.sqrt_num_samples;
 
 		//phong values
 		//assuming ambocc for now
@@ -328,7 +331,7 @@ RT_PROGRAM void closest_hit_radiance3()
 		}
 
 		//occlusion values
-		float3 occlusion = make_float3(0.0);
+		unsigned int occlusion = 0;
 
 		uint2 seed = shadow_rng_seeds[launch_index];
 		//seed.x = rot_seed(seed.x, frame);
@@ -337,6 +340,7 @@ RT_PROGRAM void closest_hit_radiance3()
 
 		//shadow_rng_seeds[launch_index] = seed;
 
+		prd_radiance.shadow_intersection = 1000000.0f;
 		//Stratify x
 		for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
 				seed.x = rot_seed(seed.x, i);
@@ -347,25 +351,25 @@ RT_PROGRAM void closest_hit_radiance3()
 
 						float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
 						sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
-						sample.y = (sample.y+((float)j)) / prd_radiance.sqrt_num_samples;
+						sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
 						//From point, choose a random direction to sample in
 						float3 U, V, W;
 						float3 sampleDir; 
 						createONB( ffnormal, U, V, W); //(is ffnormal the correct one to be using here?)
 						sampleUnitHemisphere( sample, U, V, W, sampleDir );
-						prd_radiance.shadow_intersection = 100;
 
 						//cast ray and check for shadow
 						PerRayData_shadow shadow_prd;
 						shadow_prd.attenuation = make_float3(1.0f);
+						shadow_prd.distance = 1000000.0f;
 						optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, scene_epsilon );
 						rtTrace(top_shadower, shadow_ray, shadow_prd);
-						occlusion += shadow_prd.attenuation;
+						occlusion += shadow_prd.attenuation.x;
 						prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
 				}
 		}
-		occlusion /= num_samples;
+		shadow_rng_seeds[launch_index] = seed;
 
 
 		/*
@@ -383,7 +387,7 @@ RT_PROGRAM void closest_hit_radiance3()
 
 
 
-prd_radiance.occlusion = occlusion;
+prd_radiance.unavg_occ = occlusion;
 prd_radiance.result = color;
 }
 
