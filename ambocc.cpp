@@ -98,7 +98,7 @@ class Softshadow : public SampleScene
 
     uint _blur_occ;
     uint _err_vis;
-		uint _view_zmin;
+    uint _view_zmin;
 
     uint _normal_rpp;
     uint _brute_rpp;
@@ -162,29 +162,29 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
-	const float gaussian_lookup[65] = { 0.85, 0.82, 0.79, 0.76, 0.72, 0.70, 0.68,
-        0.66, 0.63, 0.61, 0.59, 0.56, 0.54, 0.52,
-        0.505, 0.485, 0.46, 0.445, 0.43, 0.415, 0.395,
-        0.38, 0.365, 0.35, 0.335, 0.32, 0.305, 0.295,
-        0.28, 0.27, 0.255, 0.24, 0.23, 0.22, 0.21,
-        0.2, 0.19, 0.175, 0.165, 0.16, 0.15, 0.14,
-        0.135, 0.125, 0.12, 0.11, 0.1, 0.095, 0.09,
-        0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
-        0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
-        0.003, 0.0 };
+  const float gaussian_lookup[65] = { 0.85, 0.82, 0.79, 0.76, 0.72, 0.70, 0.68,
+    0.66, 0.63, 0.61, 0.59, 0.56, 0.54, 0.52,
+    0.505, 0.485, 0.46, 0.445, 0.43, 0.415, 0.395,
+    0.38, 0.365, 0.35, 0.335, 0.32, 0.305, 0.295,
+    0.28, 0.27, 0.255, 0.24, 0.23, 0.22, 0.21,
+    0.2, 0.19, 0.175, 0.165, 0.16, 0.15, 0.14,
+    0.135, 0.125, 0.12, 0.11, 0.1, 0.095, 0.09,
+    0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
+    0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
+    0.003, 0.0 };
 
-	/*
-  const float gaussian_lookup[65] = { 0.86466, 0.86418,
-    0.86271, 0.86028, 0.85688, 0.85253, 0.84724, 0.84102, 0.83390,
-    0.82589, 0.81701, 0.80729, 0.79677, 0.78546, 0.77340, 0.76062,
-    0.74716, 0.73306, 0.71834, 0.70306, 0.68724, 0.67094, 0.65419,
-    0.63703, 0.61950, 0.60166, 0.58353, 0.56517, 0.54661, 0.52789,
-    0.50905, 0.49014, 0.47120, 0.45225, 0.43334, 0.41450, 0.39576,
-    0.37716, 0.35873, 0.34050, 0.32250, 0.30474, 0.28727, 0.27008,
-    0.25322, 0.23670, 0.22053, 0.20473, 0.18932, 0.17430, 0.15969,
-    0.14549, 0.13172, 0.11837, 0.10546, 0.09297, 0.08093, 0.06932,
-    0.05815, 0.04740, 0.03709, 0.02719, 0.01772, 0.00866, 0.00000 };
-		*/
+  /*
+     const float gaussian_lookup[65] = { 0.86466, 0.86418,
+     0.86271, 0.86028, 0.85688, 0.85253, 0.84724, 0.84102, 0.83390,
+     0.82589, 0.81701, 0.80729, 0.79677, 0.78546, 0.77340, 0.76062,
+     0.74716, 0.73306, 0.71834, 0.70306, 0.68724, 0.67094, 0.65419,
+     0.63703, 0.61950, 0.60166, 0.58353, 0.56517, 0.54661, 0.52789,
+     0.50905, 0.49014, 0.47120, 0.45225, 0.43334, 0.41450, 0.39576,
+     0.37716, 0.35873, 0.34050, 0.32250, 0.30474, 0.28727, 0.27008,
+     0.25322, 0.23670, 0.22053, 0.20473, 0.18932, 0.17430, 0.15969,
+     0.14549, 0.13172, 0.11837, 0.10546, 0.09297, 0.08093, 0.06932,
+     0.05815, 0.04740, 0.03709, 0.02719, 0.01772, 0.00866, 0.00000 };
+     */
 
   for(int i=0; i<65; i++) {
     lookups[i] = gaussian_lookup[i];
@@ -201,9 +201,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 
   _err_vis = 0;
   _context["err_vis"]->setUint(_err_vis);
-	
-	_view_zmin = 0;
-	_context["view_zmin"]->setUint(_view_zmin);
+
+  _view_zmin = 0;
+  _context["view_zmin"]->setUint(_view_zmin);
 
   _show_progressive = 0;
   _context["show_progressive"]->setUint(_show_progressive);
@@ -350,11 +350,11 @@ void Softshadow::trace( const RayGenCameraData& camera_data )
   _context["W"]->setFloat( camera_data.W );
 
   // do i need to reseed?
-   Buffer shadow_rng_seeds = _context["shadow_rng_seeds"]->getBuffer();
-   uint2* seeds = reinterpret_cast<uint2*>( shadow_rng_seeds->map() );
-   for(unsigned int i = 0; i < _width * _height; ++i )
-   seeds[i] = random2u();
-   shadow_rng_seeds->unmap();
+  Buffer shadow_rng_seeds = _context["shadow_rng_seeds"]->getBuffer();
+  uint2* seeds = reinterpret_cast<uint2*>( shadow_rng_seeds->map() );
+  for(unsigned int i = 0; i < _width * _height; ++i )
+    seeds[i] = random2u();
+  shadow_rng_seeds->unmap();
 
   Buffer buffer = _context["output_buffer"]->getBuffer();
   RTsize buffer_width, buffer_height;
@@ -384,14 +384,14 @@ void Softshadow::trace( const RayGenCameraData& camera_data )
     std::cout << "Total render done (including blur): " << difftime(end,_started_render) << "s" << std::endl;
   }
 
-/*
-  unsigned int unconverged = 0;
-  unsigned int * conv = reinterpret_cast<unsigned int*>( _conv_buffer->map() );
-  for (unsigned int i = 0; i < _width * _height; ++i)
-    unconverged += conv[i];
-  _conv_buffer->unmap();
-  std::cout << "Unconverged: " << unconverged << std::endl;
-  */
+  /*
+     unsigned int unconverged = 0;
+     unsigned int * conv = reinterpret_cast<unsigned int*>( _conv_buffer->map() );
+     for (unsigned int i = 0; i < _width * _height; ++i)
+     unconverged += conv[i];
+     _conv_buffer->unmap();
+     std::cout << "Unconverged: " << unconverged << std::endl;
+     */
 }
 
 
@@ -460,15 +460,15 @@ bool Softshadow::keyPressed(unsigned char key, int x, int y) {
       else
         std::cout << "Err vis: Off" << std::endl;
       return true;
-		case 'Z':
-		case 'z':
-			_view_zmin = 1-_view_zmin;
-			_context["view_zmin"]->setUint(_view_zmin);
-			if (_view_zmin)
-				std::cout << "View ZMin: On" << std::endl;
-			else
-				std::cout << "View ZMin: Off" << std::endl;
-			return true;
+    case 'Z':
+    case 'z':
+      _view_zmin = 1-_view_zmin;
+      _context["view_zmin"]->setUint(_view_zmin);
+      if (_view_zmin)
+        std::cout << "View ZMin: On" << std::endl;
+      else
+        std::cout << "View ZMin: Off" << std::endl;
+      return true;
     case 'P':
     case 'p':
       _show_progressive = 1-_show_progressive;

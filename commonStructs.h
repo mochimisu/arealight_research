@@ -36,12 +36,21 @@ typedef struct struct_BasicLight
 struct BoxLight
 {
 #if defined(__cplusplus)
-	typedef optix::float3 float3;
+  typedef optix::float3 float3;
 #endif
-	float3 v1, v2;
-	float3 color;
-	int casts_shadow;
+  float3 v1, v2;
+  float3 color;
+  int casts_shadow;
 };
+
+struct AreaLight
+{
+#if defined(__cplusplus)
+  typedef optix::float3 float3;
+#endif
+  float3 v1, v2;
+  float3 color;
+}
 
 struct TriangleLight
 {
