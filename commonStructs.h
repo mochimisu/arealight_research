@@ -43,14 +43,14 @@ struct BoxLight
   int casts_shadow;
 };
 
-struct AreaLight
+typedef struct struct_AreaLight
 {
 #if defined(__cplusplus)
   typedef optix::float3 float3;
 #endif
-  float3 v1, v2;
+  float3 v1, v2, v3;
   float3 color;
-}
+} AreaLight;
 
 struct TriangleLight
 {

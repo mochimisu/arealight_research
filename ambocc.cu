@@ -301,7 +301,7 @@ rtDeclareVariable(float3,   Ks, , );
 rtDeclareVariable(float,    phong_exp, , );
 rtDeclareVariable(float3,   Kd, , ); 
 rtDeclareVariable(float3,   ambient_light_color, , );
-rtBuffer<BoxLight>        lights;
+rtBuffer<AreaLight>        lights;
 rtDeclareVariable(rtObject, top_shadower, , );
 rtDeclareVariable(float3, reflectivity, , );
 rtDeclareVariable(float, importance_cutoff, , );
@@ -321,7 +321,25 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.t_hit = t_hit;
   prd_radiance.world_loc = hit_point;
   prd_radiance.hit = true;
+  //occlusion values
+  unsigned int occlusion = 0;
 
+  uint2 seed = shadow_rng_seeds[launch_index];
+  //seed.x = rot_seed(seed.x, frame);
+  //seed.y = rot_seed(seed.y, frame);
+  //float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
+
+  //shadow_rng_seeds[launch_index] = seed;
+
+  prd_radiance.shadow_intersection = 1000000.0f;
+
+  //Assume 1 light for now
+  AreaLight light = lights[0];
+  float3 lx = light.v2 - light.v1;
+  float3 ly = light.v3 - light.v1;
+  float3 lo = light.v1;
+  //float3 lc = light.color;
+  
   //phong values
   //assuming ambocc for now
   //THIS IS WRONG, FIX IT SOON
@@ -334,17 +352,6 @@ RT_PROGRAM void closest_hit_radiance3()
       color += Ks * pow(nDh, phong_exp);
   }
 
-  //occlusion values
-  unsigned int occlusion = 0;
-
-  uint2 seed = shadow_rng_seeds[launch_index];
-  //seed.x = rot_seed(seed.x, frame);
-  //seed.y = rot_seed(seed.y, frame);
-  //float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
-
-  //shadow_rng_seeds[launch_index] = seed;
-
-  prd_radiance.shadow_intersection = 1000000.0f;
   //Stratify x
   for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
     seed.x = rot_seed(seed.x, i);
@@ -357,24 +364,31 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
+      /*
       //From point, choose a random direction to sample in
       float3 U, V, W;
       float3 sampleDir; 
       createONB( ffnormal, U, V, W); //(is ffnormal the correct one to be using here?)
       sampleUnitHemisphere( sample, U, V, W, sampleDir );
+      */
 
-      if(dot(ffnormal, sampleDir) < 0.0f) {
-        occlusion += 100000.0f;
+      float3 target = (sample.x * lx + sample.y * ly) + lo;
+      float3 sampleDir = target - hit_point;
+
+      if(dot(ffnormal, sampleDir) > 0.0f) {
+        // PHONG
+
+
+        // SHADOW
+        //cast ray and check for shadow
+        PerRayData_shadow shadow_prd;
+        shadow_prd.attenuation = make_float3(1.0f);
+        shadow_prd.distance = 1000000.0f;
+        optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, scene_epsilon );
+        rtTrace(top_shadower, shadow_ray, shadow_prd);
+        occlusion += shadow_prd.attenuation.x;
+        prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
       }
-
-      //cast ray and check for shadow
-      PerRayData_shadow shadow_prd;
-      shadow_prd.attenuation = make_float3(1.0f);
-      shadow_prd.distance = 1000000.0f;
-      optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, scene_epsilon );
-      rtTrace(top_shadower, shadow_ray, shadow_prd);
-      occlusion += shadow_prd.attenuation.x;
-      prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
     }
   }
   shadow_rng_seeds[launch_index] = seed;

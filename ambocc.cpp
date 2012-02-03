@@ -242,6 +242,24 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
+  // Area lights
+  AreaLight lights[] = {
+    { make_float3(-10.0f, 55.0f, -16.0f),
+      make_float3(0.0f, 65.0f, -16.0f),
+      make_float3(10.0f, 45.0f, -16.0f),
+      make_float3(1.0f, 1.0f, 1.0f)
+    }
+  };
+  Buffer light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
+  light_buffer->setFormat(RT_FORMAT_USER);
+  light_buffer->setElementSize(sizeof(AreaLight));
+  light_buffer->setSize( sizeof(lights)/sizeof(lights[0]) );
+  memcpy(light_buffer->map(), lights, sizeof(lights));
+  light_buffer->unmap();
+
+  _context["lights"]->set(light_buffer);
+
+/*
   // Lights for non IBL  
   BoxLight lights[] = {
     { make_float3( -10.0f, 55.0f, -16.0f ),
@@ -258,6 +276,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   light_buffer->unmap();
 
   _context["lights"]->set(light_buffer);
+  */
 
   // Set up camera
   camera_data = InitialCameraData( make_float3( 7.0f, 9.2f, -6.0f ), // eye
