@@ -111,6 +111,9 @@ class Softshadow : public SampleScene
     time_t _started_render;
 
     Buffer testBuf;
+
+    AreaLight * _env_lights;
+    uint _show_brdf;
 };
 
 
@@ -208,7 +211,10 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _show_progressive = 0;
   _context["show_progressive"]->setUint(_show_progressive);
 
-  _normal_rpp = 4;
+  _show_brdf = 0;
+  _context["show_brdf"]->setUint(_show_brdf);
+
+  _normal_rpp = 2;
   _brute_rpp = 8;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -243,6 +249,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
   // Area lights
+
   AreaLight lights[] = {
     { make_float3(-10.0f, 55.0f, -16.0f),
       make_float3(0.0f, 65.0f, -16.0f),
@@ -250,9 +257,12 @@ void Softshadow::initScene( InitialCameraData& camera_data )
       make_float3(1.0f, 1.0f, 1.0f)
     }
   };
+  _env_lights = lights;
   Buffer light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
   light_buffer->setFormat(RT_FORMAT_USER);
   light_buffer->setElementSize(sizeof(AreaLight));
+  //light_buffer->setSize( sizeof(_env_lights)/sizeof(_env_lights[0]) );
+  //memcpy(light_buffer->map(), _env_lights, sizeof(_env_lights));
   light_buffer->setSize( sizeof(lights)/sizeof(lights[0]) );
   memcpy(light_buffer->map(), lights, sizeof(lights));
   light_buffer->unmap();
@@ -444,6 +454,41 @@ bool Softshadow::keyPressed(unsigned char key, int x, int y) {
   float delta = 0.01f;
 
   switch(key) {
+    case 'U':
+    case 'u':
+      break;
+    case 'J':
+    case 'j':
+      break;
+    case 'I':
+    case 'i':
+      break;
+    case 'K':
+    case 'k':
+      break;
+      
+    case 'O':
+    case 'o':
+      break;
+    case 'L':
+    case 'l':
+      break;
+
+    case 'M':
+    case 'm':
+      
+      _show_brdf = 1-_show_brdf;
+      _context["show_brdf"]->setUint(_show_brdf);
+      if (_show_brdf)
+        std::cout << "BRDF: On" << std::endl;
+      else
+        std::cout << "BRDF: Off" << std::endl;
+      return true;
+
+
+
+
+
     case 'Q':
     case 'q':
       _env_theta += delta;

@@ -74,6 +74,7 @@ struct PerRayData_radiance
 	int sqrt_num_samples;
 	bool brdf;
 	unsigned int unavg_occ;
+  unsigned int num_occ;
 };
 
 struct PerRayData_shadow
