@@ -308,7 +308,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   geomgroup = _context->createGeometryGroup();
   ObjLoader* loader = 0;
   std::string obj_file;
-  //obj_file = "teapot3.obj";
+  //obj_file = "teapot2.obj";
   obj_file = "sphere.obj";
 
   //just for an ex

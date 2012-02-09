@@ -235,7 +235,7 @@ RT_PROGRAM void pinhole_camera() {
               float distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
               if(distancesq < 0)
                 distancesq = -distancesq;
-              if (distancesq < 0.5) {
+              if (distancesq < 1) {
                 float weight = gaussFilter(distancesq,zmin);
                 blurred_occ += weight * target_occ;
                 sumWeight += weight;
@@ -268,8 +268,7 @@ RT_PROGRAM void pinhole_camera() {
   float3 brdf_term = make_float3(1);
   if (show_brdf)
     brdf_term = brdf[launch_index];
-  output_buffer[launch_index] = make_color( make_float3(blurred_occ));
-  //output_buffer[launch_index] = make_color( make_float3(blurred_occ) * brdf_term);
+  output_buffer[launch_index] = make_color( make_float3(blurred_occ) * brdf_term);
   if (view_zmin)
     output_buffer[launch_index] = make_color( make_float3(zmin) );
 
@@ -385,7 +384,7 @@ RT_PROGRAM void closest_hit_radiance3()
       */
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
-      float3 sampleDir = target - hit_point;
+      float3 sampleDir = normalize(target - hit_point);
 
       if(dot(ffnormal, sampleDir) > 0.0f) {
         ++num_occ;
@@ -409,11 +408,16 @@ RT_PROGRAM void closest_hit_radiance3()
         PerRayData_shadow shadow_prd;
         shadow_prd.attenuation = make_float3(1.0f);
         shadow_prd.distance = 1000000.0f;
-        optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, scene_epsilon );
+        optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
           prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
+      } 
+      /*
+         else {
+        color += make_float3(10000,0,0);
       }
+      */
     }
   }
   //color += colorAvg/(prd_radiance.sqrt_num_samples*prd_radiance.sqrt_num_samples);
