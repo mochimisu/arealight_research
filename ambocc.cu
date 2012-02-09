@@ -268,7 +268,8 @@ RT_PROGRAM void pinhole_camera() {
   float3 brdf_term = make_float3(1);
   if (show_brdf)
     brdf_term = brdf[launch_index];
-  output_buffer[launch_index] = make_color( make_float3(blurred_occ) * brdf_term);
+  output_buffer[launch_index] = make_color( make_float3(blurred_occ));
+  //output_buffer[launch_index] = make_color( make_float3(blurred_occ) * brdf_term);
   if (view_zmin)
     output_buffer[launch_index] = make_color( make_float3(zmin) );
 
@@ -411,7 +412,6 @@ RT_PROGRAM void closest_hit_radiance3()
         optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
-        if(shadow_prd.distance > 0.05)
           prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
       }
     }

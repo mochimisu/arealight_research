@@ -214,7 +214,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _show_brdf = 0;
   _context["show_brdf"]->setUint(_show_brdf);
 
-  _normal_rpp = 2;
+  _normal_rpp = 4;
   _brute_rpp = 8;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -308,7 +308,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   geomgroup = _context->createGeometryGroup();
   ObjLoader* loader = 0;
   std::string obj_file;
-  obj_file = "teapot2.obj";
+  //obj_file = "teapot3.obj";
+  obj_file = "sphere.obj";
 
   //just for an ex
 
@@ -324,8 +325,10 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   mat["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
   mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
 
+  Matrix4x4 obj_xform = Matrix4x4::identity();// * Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
+
   loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
-  loader->load();  
+  loader->load(obj_xform);  
 
   //Use kd tree (default by ObjLoder is SBVH)
   //doesnt work for some reason..?
