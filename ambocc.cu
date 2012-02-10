@@ -348,19 +348,19 @@ RT_PROGRAM void closest_hit_radiance3()
   float3 lo = light.v1;
   //float3 lc = light.color;
   float3 colorAvg = make_float3(0,0,0);
-  
+
   //phong values
   //assuming ambocc for now
   //THIS IS WRONG, FIX IT SOON
   /*
-  if (prd_radiance.brdf) {
+     if (prd_radiance.brdf) {
 
-    float3 H = normalize(ffnormal - ray.direction);
-    float nDh = dot( ffnormal, H );
-    if (nDh > 0)
-      colorAvg += Ks * pow(nDh, phong_exp);
-  }
-  */
+     float3 H = normalize(ffnormal - ray.direction);
+     float nDh = dot( ffnormal, H );
+     if (nDh > 0)
+     colorAvg += Ks * pow(nDh, phong_exp);
+     }
+   */
 
   //Stratify x
   int num_occ = 0;
@@ -381,7 +381,7 @@ RT_PROGRAM void closest_hit_radiance3()
       float3 sampleDir; 
       createONB( ffnormal, U, V, W); //(is ffnormal the correct one to be using here?)
       sampleUnitHemisphere( sample, U, V, W, sampleDir );
-      */
+       */
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
       float3 sampleDir = normalize(target - hit_point);
@@ -408,16 +408,16 @@ RT_PROGRAM void closest_hit_radiance3()
         PerRayData_shadow shadow_prd;
         shadow_prd.attenuation = make_float3(1.0f);
         shadow_prd.distance = 1000000.0f;
-        optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
+        optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
-          prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
+        prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
       } 
       /*
          else {
-        color += make_float3(10000,0,0);
-      }
-      */
+         color += make_float3(10000,0,0);
+         }
+       */
     }
   }
   //color += colorAvg/(prd_radiance.sqrt_num_samples*prd_radiance.sqrt_num_samples);
