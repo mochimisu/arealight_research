@@ -327,8 +327,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 
   Matrix4x4 obj_xform = Matrix4x4::identity();// * Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
 
-  loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
-  loader->load(obj_xform);  
+  //loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
+  //loader->load(obj_xform);  
 
   //Use kd tree (default by ObjLoder is SBVH)
   //doesnt work for some reason..?
@@ -341,12 +341,12 @@ void Softshadow::initScene( InitialCameraData& camera_data )
      */
 
 
-  _context["top_object"]->set( geomgroup );
-  _context["top_shadower"]->set( geomgroup );
-
-
   // Populate scene hierarchy
   createGeometry();
+
+  //_context["top_object"]->set( geomgroup );
+  //_context["top_shadower"]->set( geomgroup );
+
 
 
 
@@ -580,6 +580,20 @@ void Softshadow::createGeometry()
   // Create chull
   Geometry chull = 0;
 
+  // Sphere
+  std::string sph_ptx( ptxpath( "ambocc_research", "sphere.cu" ) ); 
+  Program sph_bounds = _context->createProgramFromPTXFile( sph_ptx, "bounds" );
+  Program sph_intersect = _context->createProgramFromPTXFile( sph_ptx, "intersect" );
+
+  Geometry sphere = _context->createGeometry();
+  sphere->setBoundingBoxProgram( sph_bounds );
+  sphere->setIntersectionProgram( sph_intersect );
+  sphere->setPrimitiveCount( 1u );
+  sphere["sphere"]->setFloat( 0, 5, 0, 4 );
+
+  
+
+
   // Floor geometry
   std::string pgram_ptx( ptxpath( "ambocc_research", "parallelogram.cu" ) );
   Geometry parallelogram = _context->createGeometry();
@@ -616,6 +630,22 @@ void Softshadow::createGeometry()
   box_matl["phong_exp"]->setFloat( 88 );
   box_matl["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
   box_matl["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
+
+  
+  std::string sph_chname;
+  sph_chname = "closest_hit_radiance3";
+  Material sph_matl = _context->createMaterial();
+  Program sph_ch = _context->createProgramFromPTXFile( _ptx_path, sph_chname );
+  sph_matl->setClosestHitProgram( 0, sph_ch );
+  Program sph_ah = _context->createProgramFromPTXFile( _ptx_path, "any_hit_shadow" );
+  sph_matl->setAnyHitProgram( 1, sph_ah );
+
+  sph_matl["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  sph_matl["Kd"]->setFloat( 1.0f, 1.0f, 1.0f );
+  sph_matl["Ks"]->setFloat( 1.0f, 1.0f, 1.0f );
+  sph_matl["phong_exp"]->setFloat( 88 );
+  sph_matl["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
+  sph_matl["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
 
   std::string floor_chname;
   floor_chname = "closest_hit_radiance3";
@@ -667,8 +697,9 @@ void Softshadow::createGeometry()
 
   // Create GIs for each piece of geometry
   std::vector<GeometryInstance> gis;
-  gis.push_back( _context->createGeometryInstance( box, &box_matl, &box_matl+1 ) );
+  //gis.push_back( _context->createGeometryInstance( box, &box_matl, &box_matl+1 ) );
   gis.push_back( _context->createGeometryInstance( parallelogram, &floor_matl, &floor_matl+1 ) );
+  gis.push_back( _context->createGeometryInstance( sphere, &sph_matl, &sph_matl+1 ) );
   if(chull.get())
     gis.push_back( _context->createGeometryInstance( chull, &glass_matl, &glass_matl+1 ) );
 
@@ -681,12 +712,13 @@ void Softshadow::createGeometry()
   geometrygroup->setChildCount( static_cast<unsigned int>(gis.size()) );
   geometrygroup->setChild( 0, gis[0] );
   geometrygroup->setChild( 1, gis[1] );
+  //geometrygroup->setChild( 2, gis[2] );
   if(chull.get())
-    geometrygroup->setChild( 2, gis[2] );
-  //geometrygroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
+    geometrygroup->setChild( 3, gis[3] );
+  geometrygroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
-  //_context["top_object"]->set( geometrygroup );
-  //_context["top_shadower"]->set( geometrygroup );
+  _context["top_object"]->set( geometrygroup );
+  _context["top_shadower"]->set( geometrygroup );
 }
 
 
