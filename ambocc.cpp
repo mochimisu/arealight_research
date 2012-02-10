@@ -114,6 +114,7 @@ class Softshadow : public SampleScene
 
     AreaLight * _env_lights;
     uint _show_brdf;
+    uint _show_occ;
 };
 
 
@@ -214,8 +215,11 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _show_brdf = 0;
   _context["show_brdf"]->setUint(_show_brdf);
 
-  _normal_rpp = 4;
-  _brute_rpp = 8;
+  _show_occ = 1;
+  _context["show_occ"]->setUint(_show_occ);
+
+  _normal_rpp = 6;
+  _brute_rpp = 10;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -251,9 +255,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   // Area lights
 
   AreaLight lights[] = {
-    { make_float3(-10.0f, 55.0f, -16.0f),
-      make_float3(0.0f, 65.0f, -16.0f),
-      make_float3(10.0f, 45.0f, -16.0f),
+    { make_float3(-10.0f, 15.0f, -16.0f),
+      make_float3(0.0f, 15.0f, -16.0f),
+      make_float3(10.0f, 15.0f, -16.0f),
       make_float3(1.0f, 1.0f, 1.0f)
     }
   };
@@ -308,8 +312,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   geomgroup = _context->createGeometryGroup();
   ObjLoader* loader = 0;
   std::string obj_file;
-  //obj_file = "teapot2.obj";
-  obj_file = "sphere.obj";
+  obj_file = "bunny.obj";
+  //obj_file = "sphere2.obj";
 
   //just for an ex
 
@@ -325,10 +329,10 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   mat["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
   mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
 
-  Matrix4x4 obj_xform = Matrix4x4::identity();// * Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
+  Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
 
-  //loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
-  //loader->load(obj_xform);  
+  loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
+  loader->load(obj_xform);  
 
   //Use kd tree (default by ObjLoder is SBVH)
   //doesnt work for some reason..?
@@ -344,8 +348,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   // Populate scene hierarchy
   createGeometry();
 
-  //_context["top_object"]->set( geomgroup );
-  //_context["top_shadower"]->set( geomgroup );
+  _context["top_object"]->set( geomgroup );
+  _context["top_shadower"]->set( geomgroup );
 
 
 
@@ -479,13 +483,21 @@ bool Softshadow::keyPressed(unsigned char key, int x, int y) {
 
     case 'M':
     case 'm':
-      
       _show_brdf = 1-_show_brdf;
       _context["show_brdf"]->setUint(_show_brdf);
       if (_show_brdf)
         std::cout << "BRDF: On" << std::endl;
       else
         std::cout << "BRDF: Off" << std::endl;
+      return true;
+    case 'N':
+    case 'n':
+      _show_occ = 1-_show_occ;
+      _context["show_occ"]->setUint(_show_occ);
+      if (_show_occ)
+        std::cout << "Occlusion Display: On" << std::endl;
+      else
+        std::cout << "Occlusion Display: Off" << std::endl;
       return true;
 
 
@@ -697,9 +709,9 @@ void Softshadow::createGeometry()
 
   // Create GIs for each piece of geometry
   std::vector<GeometryInstance> gis;
-  //gis.push_back( _context->createGeometryInstance( box, &box_matl, &box_matl+1 ) );
+  gis.push_back( _context->createGeometryInstance( box, &box_matl, &box_matl+1 ) );
   gis.push_back( _context->createGeometryInstance( parallelogram, &floor_matl, &floor_matl+1 ) );
-  gis.push_back( _context->createGeometryInstance( sphere, &sph_matl, &sph_matl+1 ) );
+  //gis.push_back( _context->createGeometryInstance( sphere, &sph_matl, &sph_matl+1 ) );
   if(chull.get())
     gis.push_back( _context->createGeometryInstance( chull, &glass_matl, &glass_matl+1 ) );
 
@@ -717,8 +729,8 @@ void Softshadow::createGeometry()
     geometrygroup->setChild( 3, gis[3] );
   geometrygroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
-  _context["top_object"]->set( geometrygroup );
-  _context["top_shadower"]->set( geometrygroup );
+  //_context["top_object"]->set( geometrygroup );
+  //_context["top_shadower"]->set( geometrygroup );
 }
 
 

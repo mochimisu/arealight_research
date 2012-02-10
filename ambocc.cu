@@ -130,6 +130,7 @@ rtDeclareVariable(float,          zmin_rpp_scale, , );
 rtDeclareVariable(int2,           pixel_radius, , );
 
 rtDeclareVariable(uint,           show_brdf, , );
+rtDeclareVariable(uint,           show_occ, , );
 
 rtBuffer<uint, 2>                 conv;
 
@@ -162,7 +163,7 @@ RT_PROGRAM void pinhole_camera() {
   }
 
 
-  if (frame == 1 && zmin < 0.05) {
+  if (frame == 1 && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.01) {
     prd.sqrt_num_samples = brute_rpp;
     prd.brdf = true;
     shoot_ray = true;
@@ -249,7 +250,8 @@ RT_PROGRAM void pinhole_camera() {
     }
     if(sumWeight > 0)
       blurred_occ /= sumWeight;
-    if(err_vis && numBlurred < 2) {
+    //if(err_vis && numBlurred < 2) {
+	if(err_vis && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.01) {
       output_buffer[launch_index] = make_color(make_float3(1,0,0));
       return;
     }
@@ -266,9 +268,12 @@ RT_PROGRAM void pinhole_camera() {
   //brdf info in brdf[launch_index], not yet computed correctly, to save time.
   //output_buffer[launch_index] = make_color( make_float3(blurred_occ));
   float3 brdf_term = make_float3(1);
+  float occ_term = 1;
   if (show_brdf)
     brdf_term = brdf[launch_index];
-  output_buffer[launch_index] = make_color( make_float3(blurred_occ) * brdf_term);
+  if (show_occ)
+	  occ_term = blurred_occ;
+  output_buffer[launch_index] = make_color( occ_term * brdf_term);
   if (view_zmin)
     output_buffer[launch_index] = make_color( make_float3(zmin) );
 
@@ -284,7 +289,7 @@ RT_PROGRAM void pinhole_camera() {
 RT_PROGRAM void miss()
 {
   prd_radiance.result = bg_color;
-  prd_radiance.shadow_intersection = 100000.0f;
+  //prd_radiance.shadow_intersection = 100000.0f;
 }
 
 //
@@ -374,7 +379,7 @@ RT_PROGRAM void closest_hit_radiance3()
       float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
-
+		
       /*
       //From point, choose a random direction to sample in
       float3 U, V, W;
@@ -403,15 +408,24 @@ RT_PROGRAM void closest_hit_radiance3()
 
 
 
+		float3 distancevectoocc = target-hit_point;
+		float distancetolight = sqrt(distancevectoocc.x*distancevectoocc.x + distancevectoocc.y*distancevectoocc.y + distancevectoocc.z * distancevectoocc.z);
+
+
         // SHADOW
         //cast ray and check for shadow
         PerRayData_shadow shadow_prd;
         shadow_prd.attenuation = make_float3(1.0f);
-        shadow_prd.distance = 1000000.0f;
+        shadow_prd.distance = distancetolight;
         optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
-          prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
+
+				float dlzmin = distancetolight/(distancetolight-shadow_prd.distance) - 1;
+        prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
+        //prd_radiance.shadow_intersection = min(1/dlzmin, prd_radiance.shadow_intersection);
+        //prd_radiance.shadow_intersection = min(dzmindl,prd_radiance.shadow_intersection);
+          //prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
       } 
       /*
          else {
