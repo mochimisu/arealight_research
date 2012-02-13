@@ -118,6 +118,7 @@ rtBuffer<float3, 2>               brdf;
 rtBuffer<float4, 2>               occ;
 //rtBuffer<float4, 2>              accum_buffer_occ_h;
 rtBuffer<float3, 2>               world_loc;
+rtBuffer<float3, 2>               n;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -189,6 +190,7 @@ RT_PROGRAM void pinhole_camera() {
 
     cur_world_loc = prd.world_loc;
     world_loc[launch_index] = cur_world_loc;
+    n[launch_index] = normalize(prd.n);
     if (prd.brdf)
       brdf[launch_index] = prd.result;
     if (cur_occ.z == 0) {
@@ -218,9 +220,13 @@ RT_PROGRAM void pinhole_camera() {
   //pixel_radius = make_int2(10,10);
   float sumWeight = 0.0;
 
+  int numIgnored = 0;
+
   //i guess just blur here for now... inefficient, but gets the point across
   if (blur_occ && (frame > 2)) {
     int numBlurred = 0;
+
+    float3 cur_n = n[make_uint2(launch_index.x, launch_index.y)];
 
     if (zmin > 0.0) {
       for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
@@ -229,6 +235,7 @@ RT_PROGRAM void pinhole_camera() {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
             if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
               float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
+              float3 target_n = n[make_uint2(launch_index.x+i, launch_index.y+j)];
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
@@ -237,11 +244,15 @@ RT_PROGRAM void pinhole_camera() {
               if(distancesq < 0)
                 distancesq = -distancesq;
               if (distancesq < 1) {
-                float weight = gaussFilter(distancesq,zmin);
-                blurred_occ += weight * target_occ;
-                sumWeight += weight;
-                if (weight > 0)
-                  numBlurred += 1;
+                if (acos(dot(target_n, cur_n)) < 0.785) {
+                  float weight = gaussFilter(distancesq,zmin);
+                  blurred_occ += weight * target_occ;
+                  sumWeight += weight;
+                  if (weight > 0)
+                    numBlurred += 1;
+                } else {
+                  numIgnored++;
+                }
               }
             }
           }
@@ -253,7 +264,7 @@ RT_PROGRAM void pinhole_camera() {
     //if(err_vis && numBlurred < 2) {
 	if(err_vis && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.01) {
       output_buffer[launch_index] = make_color(make_float3(1,0,0));
-      return;
+      //return;
     }
     /*
        if(err_vis)
@@ -279,6 +290,9 @@ RT_PROGRAM void pinhole_camera() {
 
   if (shoot_ray && err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,1,0) );
+
+  if (err_vis)
+    output_buffer[launch_index] = make_color( make_float3(0,0,(float)numIgnored/10) );
 
 }
 
@@ -334,6 +348,7 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.t_hit = t_hit;
   prd_radiance.world_loc = hit_point;
   prd_radiance.hit = true;
+  prd_radiance.n = ffnormal;
   //occlusion values
   unsigned int occlusion = 0;
 

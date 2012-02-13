@@ -200,6 +200,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   Buffer world_loc = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["world_loc"]->set( world_loc );
 
+  Buffer n = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
+  _context["n"]->set( n );
+
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
@@ -348,8 +351,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   // Populate scene hierarchy
   createGeometry();
 
-  _context["top_object"]->set( geomgroup );
-  _context["top_shadower"]->set( geomgroup );
+  //_context["top_object"]->set( geomgroup );
+  //_context["top_shadower"]->set( geomgroup );
 
 
 
@@ -729,8 +732,8 @@ void Softshadow::createGeometry()
     geometrygroup->setChild( 3, gis[3] );
   geometrygroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
-  //_context["top_object"]->set( geometrygroup );
-  //_context["top_shadower"]->set( geometrygroup );
+  _context["top_object"]->set( geometrygroup );
+  _context["top_shadower"]->set( geometrygroup );
 }
 
 
