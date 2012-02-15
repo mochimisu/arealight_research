@@ -168,7 +168,7 @@ RT_PROGRAM void pinhole_camera() {
   }
 
 
-  if (frame == 1 && zmin < 0.05 && cur_occ.x>0.02) {
+  if (frame == 1 && zmin < 0.05 && cur_occ.x>0.01) {
     prd.sqrt_num_samples = brute_rpp;
     prd.brdf = true;
     shoot_ray = true;
@@ -229,7 +229,6 @@ RT_PROGRAM void pinhole_camera() {
   //pixel_radius = make_int2(10,10);
   float sumWeight = 0.0;
 
-  int numIgnored = 0;
 
   //i guess just blur here for now... inefficient, but gets the point across
   if (blur_occ && (frame > 1)) {
@@ -262,14 +261,8 @@ RT_PROGRAM void pinhole_camera() {
                   if (weight > 0)
                     numBlurred += 1;
                 } 
-                /*
                 else if ( cur_obj_id != target_obj_id ) {
-                  output_buffer[launch_index] = make_color(make_float3(0,0,1));
-                  return;
-                }
-                */
-                else {
-                  numIgnored++;
+                  //err_buf[launch_index] = 2;
                 }
               }
             }

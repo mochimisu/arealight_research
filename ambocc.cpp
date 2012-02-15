@@ -227,8 +227,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
 
-  _normal_rpp = 6;
-  _brute_rpp = 10;
+  _normal_rpp = 20;
+  _brute_rpp = 30;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
