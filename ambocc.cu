@@ -120,6 +120,7 @@ rtBuffer<float4, 2>               occ;
 rtBuffer<float3, 2>               world_loc;
 rtBuffer<float3, 2>               n;
 rtBuffer<int, 2>                  obj_id_buf;
+rtBuffer<int, 2>                  err_buf;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -153,6 +154,7 @@ RT_PROGRAM void pinhole_camera() {
     prd.sqrt_num_samples = normal_rpp;
     prd.brdf = true;
     shoot_ray = true;
+    err_buf[launch_index] = 0;
   }
 
 
@@ -161,15 +163,18 @@ RT_PROGRAM void pinhole_camera() {
 
   if (zmin < 0) {
     output_buffer[launch_index] = make_color(bg_color);
+    
     return;
   }
 
 
-  if (frame == 1 && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.01) {
+  if (frame == 1 && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.02) {
     prd.sqrt_num_samples = brute_rpp;
     prd.brdf = true;
     shoot_ray = true;
+    err_buf[launch_index] = 1;
   }
+
 
   float3 cur_world_loc = make_float3(0.0);
 
@@ -227,7 +232,7 @@ RT_PROGRAM void pinhole_camera() {
   int numIgnored = 0;
 
   //i guess just blur here for now... inefficient, but gets the point across
-  if (blur_occ && (frame > 2)) {
+  if (blur_occ && (frame > 1)) {
     int numBlurred = 0;
 
     float3 cur_n = n[make_uint2(launch_index.x, launch_index.y)];
@@ -275,10 +280,11 @@ RT_PROGRAM void pinhole_camera() {
     if(sumWeight > 0)
       blurred_occ /= sumWeight;
     //if(err_vis && numBlurred < 2) {
+    /*
 	if(err_vis && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.01) {
       output_buffer[launch_index] = make_color(make_float3(1,0,0));
-      //return;
-    }
+      return;
+    } */
     /*
        if(err_vis)
     //blurred_occ = make_float4(closest_intersection[launch_index]/10.0);
@@ -304,9 +310,15 @@ RT_PROGRAM void pinhole_camera() {
   if (shoot_ray && err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,1,0) );
 
+  if(err_vis) {
+    int cur_err = err_buf[launch_index];
+    if(cur_err != 0)
+      output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
+  }
+/*
   if (err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,0,(float)numIgnored/10) );
-
+*/
 }
 
 
