@@ -203,6 +203,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   Buffer n = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["n"]->set( n );
 
+  Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["obj_id_buf"]->set( obj_id );
+
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
@@ -330,7 +333,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   mat["Ks"]->setFloat( 1.0f, 1.0f, 1.0f );
   mat["phong_exp"]->setFloat( 88 );
   mat["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
-  mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
+  mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );  
+  mat["obj_id"]->setInt(10);
+
 
   Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
 
@@ -645,6 +650,8 @@ void Softshadow::createGeometry()
   box_matl["phong_exp"]->setFloat( 88 );
   box_matl["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
   box_matl["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
+  box_matl["obj_id"]->setInt(1);
+
 
   
   std::string sph_chname;
@@ -661,6 +668,7 @@ void Softshadow::createGeometry()
   sph_matl["phong_exp"]->setFloat( 88 );
   sph_matl["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
   sph_matl["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );
+  sph_matl["obj_id"]->setInt(1);
 
   std::string floor_chname;
   floor_chname = "closest_hit_radiance3";
@@ -683,6 +691,8 @@ void Softshadow::createGeometry()
   floor_matl["tile_v1"]->setFloat( -.15f, 0, 0.25f );
   floor_matl["crack_color"]->setFloat( 0.1f, 0.1f, 0.1f );
   floor_matl["crack_width"]->setFloat( 0.02f );
+  floor_matl["obj_id"]->setInt(2);
+
 
   // Glass material
   Material glass_matl;

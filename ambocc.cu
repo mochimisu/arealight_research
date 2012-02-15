@@ -89,7 +89,7 @@ __device__ __inline__ float gaussFilter(float distsq, float zmin)
 {
 
   //float scale = 0.5;                  //scale = 2*z_min*omegaShadeMax /omegaVMax
-  float scale = zmin/2.0;
+  float scale = zmin;///2.0;
   //float sample = dist/scale;
   float sample = distsq/(scale*scale);
   if (sample > 0.9999) {
@@ -119,6 +119,7 @@ rtBuffer<float4, 2>               occ;
 //rtBuffer<float4, 2>              accum_buffer_occ_h;
 rtBuffer<float3, 2>               world_loc;
 rtBuffer<float3, 2>               n;
+rtBuffer<int, 2>                  obj_id_buf;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -191,6 +192,9 @@ RT_PROGRAM void pinhole_camera() {
     cur_world_loc = prd.world_loc;
     world_loc[launch_index] = cur_world_loc;
     n[launch_index] = normalize(prd.n);
+    obj_id_buf[launch_index] = prd.obj_id;
+
+
     if (prd.brdf)
       brdf[launch_index] = prd.result;
     if (cur_occ.z == 0) {
@@ -227,6 +231,7 @@ RT_PROGRAM void pinhole_camera() {
     int numBlurred = 0;
 
     float3 cur_n = n[make_uint2(launch_index.x, launch_index.y)];
+    int cur_obj_id = obj_id_buf[launch_index];
 
     if (zmin > 0.0) {
       for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
@@ -236,6 +241,7 @@ RT_PROGRAM void pinhole_camera() {
             if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
               float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
               float3 target_n = n[make_uint2(launch_index.x+i, launch_index.y+j)];
+              int target_obj_id = obj_id_buf[make_uint2(launch_index.x+i, launch_index.y+j)];
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
@@ -244,13 +250,20 @@ RT_PROGRAM void pinhole_camera() {
               if(distancesq < 0)
                 distancesq = -distancesq;
               if (distancesq < 1) {
-                if (acos(dot(target_n, cur_n)) < 0.785) {
+                if (acos(dot(target_n, cur_n)) < 0.785 && cur_obj_id == target_obj_id) {
                   float weight = gaussFilter(distancesq,zmin);
                   blurred_occ += weight * target_occ;
                   sumWeight += weight;
                   if (weight > 0)
                     numBlurred += 1;
-                } else {
+                } 
+                /*
+                else if ( cur_obj_id != target_obj_id ) {
+                  output_buffer[launch_index] = make_color(make_float3(0,0,1));
+                  return;
+                }
+                */
+                else {
                   numIgnored++;
                 }
               }
@@ -333,6 +346,7 @@ rtDeclareVariable(rtObject, top_shadower, , );
 rtDeclareVariable(float3, reflectivity, , );
 rtDeclareVariable(float, importance_cutoff, , );
 rtDeclareVariable(int, max_depth, , );
+rtDeclareVariable(int, obj_id, , );
 
 //asdf
 rtBuffer<uint2, 2> shadow_rng_seeds;
@@ -473,6 +487,7 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.unavg_occ = occlusion;
   prd_radiance.num_occ = num_occ;
   prd_radiance.result = color;
+  prd_radiance.obj_id = obj_id;
 }
 
 
