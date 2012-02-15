@@ -168,7 +168,7 @@ RT_PROGRAM void pinhole_camera() {
   }
 
 
-  if (frame == 1 && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.02) {
+  if (frame == 1 && zmin < 0.05 && cur_occ.x>0.02) {
     prd.sqrt_num_samples = brute_rpp;
     prd.brdf = true;
     shoot_ray = true;
@@ -306,10 +306,10 @@ RT_PROGRAM void pinhole_camera() {
   output_buffer[launch_index] = make_color( occ_term * brdf_term);
   if (view_zmin)
     output_buffer[launch_index] = make_color( make_float3(zmin) );
-
+/*
   if (shoot_ray && err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,1,0) );
-
+*/
   if(err_vis) {
     int cur_err = err_buf[launch_index];
     if(cur_err != 0)
