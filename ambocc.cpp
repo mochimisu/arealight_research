@@ -227,8 +227,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
 
-  _normal_rpp = 20;
-  _brute_rpp = 30;
+  _normal_rpp = 6;
+  _brute_rpp = 6;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -321,8 +321,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   geomgroup = _context->createGeometryGroup();
   ObjLoader* loader = 0;
   std::string obj_file;
-  obj_file = "bunny.obj";
-  //obj_file = "sphere2.obj";
+  obj_file = "plant.obj";
+  //obj_file = "bunny.obj";
+  //obj_file = "sphere.obj";
 
   //just for an ex
 
@@ -332,15 +333,16 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
 
   mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  mat["Kd"]->setFloat( 1.0f, 1.0f, 1.0f );
+  mat["Kd"]->setFloat( .40f, 0.8f, .23f );
   mat["Ks"]->setFloat( 1.0f, 1.0f, 1.0f );
   mat["phong_exp"]->setFloat( 88 );
   mat["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
   mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );  
   mat["obj_id"]->setInt(10);
 
+  //Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
+  Matrix4x4 obj_xform = Matrix4x4::identity() * Matrix4x4::scale(make_float3(1.0));
 
-  Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
 
   loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
   loader->load(obj_xform);  
@@ -359,8 +361,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   // Populate scene hierarchy
   createGeometry();
 
-  //_context["top_object"]->set( geomgroup );
-  //_context["top_shadower"]->set( geomgroup );
+  _context["top_object"]->set( geomgroup );
+  _context["top_shadower"]->set( geomgroup );
 
 
 

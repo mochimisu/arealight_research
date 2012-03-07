@@ -89,7 +89,7 @@ __device__ __inline__ float gaussFilter(float distsq, float zmin)
 {
 
   //float scale = 0.5;                  //scale = 2*z_min*omegaShadeMax /omegaVMax
-  float scale = zmin;///2.0;
+  float scale = zmin*2.0;///2.0;
   //float sample = dist/scale;
   float sample = distsq/(scale*scale);
   if (sample > 0.9999) {
@@ -171,7 +171,8 @@ RT_PROGRAM void pinhole_camera() {
   if (frame == 1 && zmin < 0.05 && cur_occ.x>0.01) {
     prd.sqrt_num_samples = brute_rpp;
     prd.brdf = true;
-    shoot_ray = true;
+    //shoot_ray = true;
+    shoot_ray = false;
     err_buf[launch_index] = 1;
   }
 
