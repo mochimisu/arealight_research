@@ -209,6 +209,10 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   Buffer err_buf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["err_buf"]->set( err_buf );
 
+  
+  Buffer dist_scale = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["dist_scale"]->set( dist_scale );
+
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
@@ -380,7 +384,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 Buffer Softshadow::getOutputBuffer()
 {
 
-  return _context["output_buffer"]->getBuffer();
+  //return _context["output_buffer"]->getBuffer();
+  return _context["dist_scale"]->getBuffer();
 }
 
 

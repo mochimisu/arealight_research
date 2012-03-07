@@ -121,6 +121,7 @@ rtBuffer<float3, 2>               world_loc;
 rtBuffer<float3, 2>               n;
 rtBuffer<int, 2>                  obj_id_buf;
 rtBuffer<int, 2>                  err_buf;
+rtBuffer<float, 2>                dist_scale;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -131,6 +132,7 @@ rtDeclareVariable(uint,           brute_rpp, , );
 rtDeclareVariable(uint,           show_progressive, , );
 rtDeclareVariable(float,          zmin_rpp_scale, , );
 rtDeclareVariable(int2,           pixel_radius, , );
+
 
 rtDeclareVariable(uint,           show_brdf, , );
 rtDeclareVariable(uint,           show_occ, , );
@@ -199,6 +201,8 @@ RT_PROGRAM void pinhole_camera() {
     world_loc[launch_index] = cur_world_loc;
     n[launch_index] = normalize(prd.n);
     obj_id_buf[launch_index] = prd.obj_id;
+
+    dist_scale[launch_index] = prd.dist_scale;
 
 
     if (prd.brdf)
@@ -371,6 +375,12 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.n = ffnormal;
   //occlusion values
   unsigned int occlusion = 0;
+
+  //hardcoded fov i guess
+  float fov = 60.0;
+  float z_dist = (t_hit*ray.direction).z;
+  prd_radiance.dist_scale = z_dist*tan(30.0*M_PI/180.0)/360.0;
+  
 
   uint2 seed = shadow_rng_seeds[launch_index];
   //seed.x = rot_seed(seed.x, frame);

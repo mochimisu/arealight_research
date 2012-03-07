@@ -77,6 +77,7 @@ struct PerRayData_radiance
   unsigned int num_occ;
   float3 n;
   int obj_id;
+  float dist_scale;
 };
 
 struct PerRayData_shadow
