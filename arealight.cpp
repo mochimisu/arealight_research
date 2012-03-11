@@ -123,7 +123,7 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   // set up path to ptx file associated with tutorial number
   std::stringstream ss;
   ss << "arealight.cu";
-  _ptx_path = ptxpath( "arealight_research", ss.str() );
+  _ptx_path = ptxpath( "arealight", ss.str() );
 
   // context 
   _context->setRayTypeCount( 2 );
@@ -384,8 +384,8 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 Buffer Softshadow::getOutputBuffer()
 {
 
-  //return _context["output_buffer"]->getBuffer();
-  return _context["dist_scale"]->getBuffer();
+  return _context["output_buffer"]->getBuffer();
+  //return _context["dist_scale"]->getBuffer();
 }
 
 
@@ -595,7 +595,7 @@ bool Softshadow::keyPressed(unsigned char key, int x, int y) {
 
 void Softshadow::createGeometry()
 {
-  std::string box_ptx( ptxpath( "arealight_research", "box.cu" ) ); 
+  std::string box_ptx( ptxpath( "arealight", "box.cu" ) ); 
   Program box_bounds = _context->createProgramFromPTXFile( box_ptx, "box_bounds" );
   Program box_intersect = _context->createProgramFromPTXFile( box_ptx, "box_intersect" );
 
@@ -611,7 +611,7 @@ void Softshadow::createGeometry()
   Geometry chull = 0;
 
   // Sphere
-  std::string sph_ptx( ptxpath( "arealight_research", "sphere.cu" ) ); 
+  std::string sph_ptx( ptxpath( "arealight", "sphere.cu" ) ); 
   Program sph_bounds = _context->createProgramFromPTXFile( sph_ptx, "bounds" );
   Program sph_intersect = _context->createProgramFromPTXFile( sph_ptx, "intersect" );
 
@@ -625,7 +625,7 @@ void Softshadow::createGeometry()
 
 
   // Floor geometry
-  std::string pgram_ptx( ptxpath( "arealight_research", "parallelogram.cu" ) );
+  std::string pgram_ptx( ptxpath( "arealight", "parallelogram.cu" ) );
   Geometry parallelogram = _context->createGeometry();
   parallelogram->setPrimitiveCount( 1u );
   parallelogram->setBoundingBoxProgram( _context->createProgramFromPTXFile( pgram_ptx, "bounds" ) );
@@ -809,7 +809,7 @@ int main( int argc, char** argv )
   if( !GLUTDisplay::isBenchmark() ) printUsageAndExit( argv[0], false );
 
   if( texture_path.empty() ) {
-    texture_path = std::string( sutilSamplesDir() ) + "/arealight_research/data";
+    texture_path = std::string( sutilSamplesDir() ) + "/arealight/data";
   }
 
   std::stringstream title;
