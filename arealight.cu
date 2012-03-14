@@ -227,8 +227,6 @@ RT_PROGRAM void pinhole_camera() {
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
             if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
-              float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
-              float3 target_n = n[make_uint2(launch_index.x+i, launch_index.y+j)];
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
@@ -237,7 +235,9 @@ RT_PROGRAM void pinhole_camera() {
               if(distancesq < 0)
                 distancesq = -distancesq;
               if (distancesq < 1) {
+                float3 target_n = n[make_uint2(launch_index.x+i, launch_index.y+j)];
                 if (acos(dot(target_n, cur_n)) < 0.785) {
+                  float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
                   //scale = (distance to light/distance to occluder - 1)
                   float weight = gaussFilter(distancesq,scale);
                   blurred_occ += weight * target_occ;
