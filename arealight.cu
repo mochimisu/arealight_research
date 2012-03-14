@@ -7,8 +7,8 @@
 
 #include "arealight.h"
 
-rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, ); 
-rtDeclareVariable(float3, shading_normal,   attribute shading_normal, ); 
+rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, );
+rtDeclareVariable(float3, shading_normal,   attribute shading_normal, );
 
 rtDeclareVariable(PerRayData_radiance, prd_radiance, rtPayload, );
 rtDeclareVariable(PerRayData_shadow,   prd_shadow,   rtPayload, );
@@ -72,12 +72,8 @@ __device__ __inline__ void sampleUnitHemisphere( const optix::float2& sample,
 
 rtBuffer<float, 1>              gaussian_lookup;
 
-__device__ __inline__ float gaussFilter(float distsq, float zmin)
+__device__ __inline__ float gaussFilter(float distsq, float scale)
 {
-
-  //float scale = 0.5;                  //scale = 2*z_min*omegaShadeMax /omegaVMax
-  float scale = zmin*2.0;///2.0;
-  //float sample = dist/scale;
   float sample = distsq/(scale*scale);
   if (sample > 0.9999) {
     return 0.0;
@@ -85,7 +81,7 @@ __device__ __inline__ float gaussFilter(float distsq, float zmin)
   float scaled = sample*64;
   int index = (int) scaled;
   float weight = scaled - index;
-  return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1]; 
+  return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
 
 //
@@ -146,16 +142,16 @@ RT_PROGRAM void pinhole_camera() {
 
 
   float4 cur_occ = occ[launch_index];
-  float zmin = cur_occ.z;
+  float scale = cur_occ.z;
 
-  if (zmin < 0) {
+  if (scale < 0) {
     output_buffer[launch_index] = make_color(bg_color);
-    
+
     return;
   }
 
 
-  if (frame == 1 && zmin < 0.05 && cur_occ.x>0.01) {
+  if (frame == 1 && scale < 0.05 && cur_occ.x>0.01) {
     prd.sqrt_num_samples = brute_rpp;
     prd.brdf = true;
     //shoot_ray = true;
@@ -193,9 +189,8 @@ RT_PROGRAM void pinhole_camera() {
       brdf[launch_index] = prd.result;
     if (cur_occ.z == 0) {
       float num_samples = prd.sqrt_num_samples * prd.sqrt_num_samples;
-      zmin = prd.shadow_intersection;
-      cur_occ = make_float4(prd.unavg_occ / num_samples, prd.unavg_occ, prd.shadow_intersection, num_samples);
-      //cur_occ = make_float4(prd.unavg_occ / prd.num_occ, prd.unavg_occ, prd.shadow_intersection, prd.num_occ);
+      scale = prd.gauss_scale;
+      cur_occ = make_float4(prd.unavg_occ / num_samples, prd.unavg_occ, prd.gauss_scale, num_samples);
       occ[launch_index] = cur_occ;
 
     }
@@ -203,9 +198,8 @@ RT_PROGRAM void pinhole_camera() {
       //float precision loss maybe... but eh
       float total_undiv_occ = prd.unavg_occ + cur_occ.y;
       float num_samples = prd.sqrt_num_samples * prd.sqrt_num_samples + cur_occ.w;
-      zmin = min(prd.shadow_intersection, zmin);
-      cur_occ = make_float4(total_undiv_occ / num_samples, total_undiv_occ, zmin, num_samples);
-      //cur_occ = make_float4(total_undiv_occ / prd.num_occ, total_undiv_occ, zmin, prd.num_occ);
+      scale = min(prd.gauss_scale, scale);
+      cur_occ = make_float4(total_undiv_occ / num_samples, total_undiv_occ, scale, num_samples);
       occ[launch_index] = cur_occ;
 
     }
@@ -214,10 +208,7 @@ RT_PROGRAM void pinhole_camera() {
   }
 
   float blurred_occ = 0.0;
-  //int2 pixel_radius = make_int2(5,5);
-  //pixel_radius = make_int2(10,10);
   float sumWeight = 0.0;
-
 
   //i guess just blur here for now... inefficient, but gets the point across
   if (blur_occ && (frame > 1)) {
@@ -225,7 +216,7 @@ RT_PROGRAM void pinhole_camera() {
 
     float3 cur_n = n[make_uint2(launch_index.x, launch_index.y)];
 
-    if (zmin > 0.0) {
+    if (scale > 0.0) {
       for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
         for(int j=-pixel_radius.y; j < pixel_radius.y; j++) {
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
@@ -242,12 +233,13 @@ RT_PROGRAM void pinhole_camera() {
                 distancesq = -distancesq;
               if (distancesq < 1) {
                 if (acos(dot(target_n, cur_n)) < 0.785) {
-                  float weight = gaussFilter(distancesq,zmin);
+                  //scale = (distance to light/distance to occluder - 1)
+                  float weight = gaussFilter(distancesq,scale);
                   blurred_occ += weight * target_occ;
                   sumWeight += weight;
                   if (weight > 0)
                     numBlurred += 1;
-                } 
+                }
               }
             }
           }
@@ -256,17 +248,6 @@ RT_PROGRAM void pinhole_camera() {
     }
     if(sumWeight > 0)
       blurred_occ /= sumWeight;
-    //if(err_vis && numBlurred < 2) {
-    /*
-	if(err_vis && zmin < 0.05 && (cur_occ.y/cur_occ.w)>0.01) {
-      output_buffer[launch_index] = make_color(make_float3(1,0,0));
-      return;
-    } */
-    /*
-       if(err_vis)
-    //blurred_occ = make_float4(closest_intersection[launch_index]/10.0);
-    blurred_occ = make_float4(prd.shadow_intersection/10.0);
-     */
   } else {
     blurred_occ = occ[launch_index].x;
   }
@@ -282,7 +263,7 @@ RT_PROGRAM void pinhole_camera() {
 	  occ_term = blurred_occ;
   output_buffer[launch_index] = make_color( occ_term * brdf_term);
   if (view_zmin)
-    output_buffer[launch_index] = make_color( make_float3(zmin) );
+    output_buffer[launch_index] = make_color( make_float3(scale) );
 /*
   if (shoot_ray && err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,1,0) );
@@ -296,6 +277,7 @@ RT_PROGRAM void pinhole_camera() {
   if (err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,0,(float)numIgnored/10) );
 */
+  //output_buffer[launch_index] = make_color(make_float3(dist_scale[launch_index]));
 }
 
 
@@ -323,12 +305,12 @@ RT_PROGRAM void any_hit_shadow()
 
 
 //
-// Phong surface shading with shadows 
+// Phong surface shading with shadows
 //
-rtDeclareVariable(float3,   Ka, , ); 
-rtDeclareVariable(float3,   Ks, , ); 
+rtDeclareVariable(float3,   Ka, , );
+rtDeclareVariable(float3,   Ks, , );
 rtDeclareVariable(float,    phong_exp, , );
-rtDeclareVariable(float3,   Kd, , ); 
+rtDeclareVariable(float3,   Kd, , );
 rtDeclareVariable(float3,   ambient_light_color, , );
 rtBuffer<AreaLight>        lights;
 rtDeclareVariable(rtObject, top_shadower, , );
@@ -358,7 +340,7 @@ RT_PROGRAM void closest_hit_radiance3()
   float fov = 60.0;
   float z_dist = (t_hit*ray.direction).z;
   prd_radiance.dist_scale = z_dist*tan(30.0*M_PI/180.0)/360.0;
-  
+
 
   uint2 seed = shadow_rng_seeds[launch_index];
   //seed.x = rot_seed(seed.x, frame);
@@ -367,8 +349,8 @@ RT_PROGRAM void closest_hit_radiance3()
 
   //shadow_rng_seeds[launch_index] = seed;
 
-  prd_radiance.shadow_intersection = 1000000.0f;
 
+  prd_radiance.gauss_scale = 1000000.0f;
   //Assume 1 light for now
   AreaLight light = lights[0];
   float3 lx = light.v2 - light.v1;
@@ -402,11 +384,11 @@ RT_PROGRAM void closest_hit_radiance3()
       float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
-		
+
       /*
       //From point, choose a random direction to sample in
       float3 U, V, W;
-      float3 sampleDir; 
+      float3 sampleDir;
       createONB( ffnormal, U, V, W); //(is ffnormal the correct one to be using here?)
       sampleUnitHemisphere( sample, U, V, W, sampleDir );
        */
@@ -444,13 +426,14 @@ RT_PROGRAM void closest_hit_radiance3()
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
 
-				float dlzmin = distancetolight/(distancetolight-shadow_prd.distance) - 1;
-        prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
+				float scale = distancetolight/(distancetolight-shadow_prd.distance) - 1;
+        prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
+        //prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(1/dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(dzmindl,prd_radiance.shadow_intersection);
           //prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
 
-      } 
+      }
       /*
          else {
          color += make_float3(10000,0,0);

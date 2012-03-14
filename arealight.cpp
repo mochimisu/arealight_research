@@ -583,7 +583,6 @@ void Arealight::createGeometry()
   box_matl["obj_id"]->setInt(1);
 
 
-  
   std::string sph_chname;
   sph_chname = "closest_hit_radiance3";
   Material sph_matl = _context->createMaterial();
