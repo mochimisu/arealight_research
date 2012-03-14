@@ -210,15 +210,20 @@ RT_PROGRAM void pinhole_camera() {
   float blurred_occ = 0.0;
   float sumWeight = 0.0;
 
+    int pix_r_scale = floor(dist_scale[launch_index]*20)+1;
   //i guess just blur here for now... inefficient, but gets the point across
   if (blur_occ && (frame > 1)) {
     int numBlurred = 0;
 
     float3 cur_n = n[make_uint2(launch_index.x, launch_index.y)];
 
+    //Testing out distance scale
+    int2 active_pixel_radius = make_int2(pix_r_scale, pix_r_scale);
+    active_pixel_radius = pixel_radius;
+
     if (scale > 0.0) {
-      for(int i=-pixel_radius.x; i < pixel_radius.x; i++) {
-        for(int j=-pixel_radius.y; j < pixel_radius.y; j++) {
+      for(int i=-active_pixel_radius.x; i < active_pixel_radius.x; i++) {
+        for(int j=-active_pixel_radius.y; j < active_pixel_radius.y; j++) {
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
             if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
@@ -338,8 +343,8 @@ RT_PROGRAM void closest_hit_radiance3()
 
   //hardcoded fov i guess
   float fov = 60.0;
-  float z_dist = (t_hit*ray.direction).z;
-  prd_radiance.dist_scale = z_dist*tan(30.0*M_PI/180.0)/360.0;
+  prd_radiance.dist_scale = 1.0/(t_hit*tan(30.0*M_PI/180.0)); 
+      //divide by 360 to get absolute between pixel and image
 
 
   uint2 seed = shadow_rng_seeds[launch_index];
