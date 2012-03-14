@@ -151,8 +151,6 @@ void Softshadow::initScene( InitialCameraData& camera_data )
     seeds[i] = random2u();
   shadow_rng_seeds->unmap();
 
-  _context["numAvg"]->setUint(1);
-
   // Accumulation buffer
   _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["brdf"]->set( _brdf );
@@ -203,13 +201,9 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   Buffer n = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["n"]->set( n );
 
-  Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  _context["obj_id_buf"]->set( obj_id );
-  
   Buffer err_buf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["err_buf"]->set( err_buf );
 
-  
   Buffer dist_scale = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_scale"]->set( dist_scale );
 
@@ -221,9 +215,6 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 
   _view_zmin = 0;
   _context["view_zmin"]->setUint(_view_zmin);
-
-  _show_progressive = 0;
-  _context["show_progressive"]->setUint(_show_progressive);
 
   _show_brdf = 0;
   _context["show_brdf"]->setUint(_show_brdf);
@@ -286,24 +277,6 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 
   _context["lights"]->set(light_buffer);
 
-/*
-  // Lights for non IBL  
-  BoxLight lights[] = {
-    { make_float3( -10.0f, 55.0f, -16.0f ),
-      make_float3( 0.0f, 65.0f, -16.0f ),
-      make_float3( 1.0f, 1.0f, 1.0f ),
-      1 
-    }
-  };
-  Buffer light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
-  light_buffer->setFormat(RT_FORMAT_USER);
-  light_buffer->setElementSize(sizeof(BoxLight));
-  light_buffer->setSize( sizeof(lights)/sizeof(lights[0]) );
-  memcpy(light_buffer->map(), lights, sizeof(lights));
-  light_buffer->unmap();
-
-  _context["lights"]->set(light_buffer);
-  */
 
   // Set up camera
   camera_data = InitialCameraData( make_float3( 7.0f, 9.2f, -6.0f ), // eye
@@ -351,26 +324,11 @@ void Softshadow::initScene( InitialCameraData& camera_data )
   loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
   loader->load(obj_xform);  
 
-  //Use kd tree (default by ObjLoder is SBVH)
-  //doesnt work for some reason..?
-  /*
-     Acceleration accel = geomgroup->getAcceleration();
-     accel->setBuilder("TriangleKdTree");
-     accel->setTraverser("KdTree");
-     accel->setProperty( "vertex_buffer_name", "vertex_buffer" );
-     accel->setProperty( "index_buffer_name", "vindex_buffer" );
-     */
-
-
   // Populate scene hierarchy
   createGeometry();
 
   _context["top_object"]->set( geomgroup );
   _context["top_shadower"]->set( geomgroup );
-
-
-
-
 
   //Initialize progressive accumulation
   resetAccumulation();
@@ -385,7 +343,6 @@ Buffer Softshadow::getOutputBuffer()
 {
 
   return _context["output_buffer"]->getBuffer();
-  //return _context["dist_scale"]->getBuffer();
 }
 
 
@@ -438,14 +395,6 @@ void Softshadow::trace( const RayGenCameraData& camera_data )
     std::cout << "Total render done (including blur): " << difftime(end,_started_render) << "s" << std::endl;
   }
 
-  /*
-     unsigned int unconverged = 0;
-     unsigned int * conv = reinterpret_cast<unsigned int*>( _conv_buffer->map() );
-     for (unsigned int i = 0; i < _width * _height; ++i)
-     unconverged += conv[i];
-     _conv_buffer->unmap();
-     std::cout << "Unconverged: " << unconverged << std::endl;
-     */
 }
 
 

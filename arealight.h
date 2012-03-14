@@ -54,10 +54,10 @@ __device__ __inline__ float3 schlick( float nDi, const float3& rgb )
 
 __device__ __inline__ uchar4 make_color(const float3& c)
 {
-    return make_uchar4( static_cast<unsigned char>(__saturatef(c.z)*255.99f),  /* B */
-                        static_cast<unsigned char>(__saturatef(c.y)*255.99f),  /* G */
-                        static_cast<unsigned char>(__saturatef(c.x)*255.99f),  /* R */
-                        255u);                                                 /* A */
+  return make_uchar4( static_cast<unsigned char>(__saturatef(c.z)*255.99f),  /* B */
+      static_cast<unsigned char>(__saturatef(c.y)*255.99f),  /* G */
+      static_cast<unsigned char>(__saturatef(c.x)*255.99f),  /* R */
+      255u);                                                 /* A */
 }
 
 struct PerRayData_radiance
@@ -71,12 +71,11 @@ struct PerRayData_radiance
   float shadow_intersection;
   bool hit;
 
-	int sqrt_num_samples;
-	bool brdf;
-	unsigned int unavg_occ;
+  int sqrt_num_samples;
+  bool brdf;
+  unsigned int unavg_occ;
   unsigned int num_occ;
   float3 n;
-  int obj_id;
   float dist_scale;
 };
 
