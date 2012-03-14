@@ -1,31 +1,9 @@
-
 /*
- * Copyright (c) 2008 - 2009 NVIDIA Corporation.  All rights reserved.
- *
- * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
- * rights in and to this software, related documentation and any modifications thereto.
- * Any use, reproduction, disclosure or distribution of this software and related
- * documentation without an express license agreement from NVIDIA Corporation is strictly
- * prohibited.
- *
- * TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THIS SOFTWARE IS PROVIDED *AS IS*
- * AND NVIDIA AND ITS SUPPLIERS DISCLAIM ALL WARRANTIES, EITHER EXPRESS OR IMPLIED,
- * INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE.  IN NO EVENT SHALL NVIDIA OR ITS SUPPLIERS BE LIABLE FOR ANY
- * SPECIAL, INCIDENTAL, INDIRECT, OR CONSEQUENTIAL DAMAGES WHATSOEVER (INCLUDING, WITHOUT
- * LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF
- * BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR
- * INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGES
+ * arealight.cpp
+ * Area Light Filtering
+ * Adapted from NVIDIA OptiX Tutorial
+ * Brandon Wang, Soham Mehta
  */
-
-//-------------------------------------------------------------------------------
-//
-//  Soft Shadow example modified from OptiX tutorial
-//
-//-------------------------------------------------------------------------------
-
-
 
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>
@@ -48,17 +26,10 @@ static float rand_range(float min, float max)
   return min + (max - min) * (float) rand() / (float) RAND_MAX;
 }
 
-
-//-----------------------------------------------------------------------------
-//
-// Whitted Scene
-//
-//-----------------------------------------------------------------------------
-
-class Softshadow : public SampleScene
+class Arealight : public SampleScene
 {
   public:
-    Softshadow(const std::string& texture_path)
+    Arealight(const std::string& texture_path)
       : SampleScene(), _width(1080u), _height(720u), texture_path( texture_path )
         , _frame_number( 0 ), _keep_trying( 1 )
   {}
@@ -118,7 +89,7 @@ class Softshadow : public SampleScene
 };
 
 
-void Softshadow::initScene( InitialCameraData& camera_data )
+void Arealight::initScene( InitialCameraData& camera_data )
 {
   // set up path to ptx file associated with tutorial number
   std::stringstream ss;
@@ -339,14 +310,14 @@ void Softshadow::initScene( InitialCameraData& camera_data )
 }
 
 
-Buffer Softshadow::getOutputBuffer()
+Buffer Arealight::getOutputBuffer()
 {
 
   return _context["output_buffer"]->getBuffer();
 }
 
 
-void Softshadow::trace( const RayGenCameraData& camera_data )
+void Arealight::trace( const RayGenCameraData& camera_data )
 {
   _frame_number ++;
 
@@ -398,12 +369,12 @@ void Softshadow::trace( const RayGenCameraData& camera_data )
 }
 
 
-void Softshadow::doResize( unsigned int width, unsigned int height )
+void Arealight::doResize( unsigned int width, unsigned int height )
 {
   // output buffer handled in SampleScene::resize
 }
 
-std::string Softshadow::texpath( const std::string& base )
+std::string Arealight::texpath( const std::string& base )
 {
   return texture_path + "/" + base;
 }
@@ -415,7 +386,7 @@ float4 make_plane( float3 n, float3 p )
   return make_float4( n, d );
 }
 
-void Softshadow::resetAccumulation()
+void Arealight::resetAccumulation()
 {
   _frame_number = 0;
   _context["frame"]->setUint( _frame_number );
@@ -424,7 +395,7 @@ void Softshadow::resetAccumulation()
 }
 
 
-bool Softshadow::keyPressed(unsigned char key, int x, int y) {
+bool Arealight::keyPressed(unsigned char key, int x, int y) {
   float delta = 0.01f;
 
   switch(key) {
@@ -542,7 +513,7 @@ bool Softshadow::keyPressed(unsigned char key, int x, int y) {
   return false;
 }
 
-void Softshadow::createGeometry()
+void Arealight::createGeometry()
 {
   std::string box_ptx( ptxpath( "arealight", "box.cu" ) ); 
   Program box_bounds = _context->createProgramFromPTXFile( box_ptx, "box_bounds" );
@@ -764,7 +735,7 @@ int main( int argc, char** argv )
   std::stringstream title;
   title << "arealight";
   try {
-    Softshadow scene(texture_path);
+    Arealight scene(texture_path);
     scene.setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
