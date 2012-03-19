@@ -153,7 +153,7 @@ RT_PROGRAM void pinhole_camera() {
     prd.brdf = true;
     shoot_ray = true;
     err_buf[launch_index] = 0;
-    zdist[launch_index] = make_float2(1000.0,-1000.0);
+    zdist[launch_index] = make_float2(1000.0,0);
     spp[launch_index] = 10.0;
   }
 
@@ -202,7 +202,8 @@ RT_PROGRAM void pinhole_camera() {
     n[launch_index] = normalize(prd.n);
 
     dist_scale[launch_index] = prd.dist_scale;
-    zdist[launch_index] = make_float2(prd.d2min, prd.d2max);
+    zdist[launch_index] = make_float2(min(prd.d2min, zdist[launch_index].x), 
+        max(prd.d2max, zdist[launch_index].y));
     spp[launch_index] = prd.spp;
 
 
@@ -457,10 +458,6 @@ RT_PROGRAM void closest_hit_radiance3()
         if (nDh > 0)
           colorAvg += Ks * pow(nDh, phong_exp);
 
-
-
-
-
         // SHADOW
         //cast ray and check for shadow
         PerRayData_shadow shadow_prd;
@@ -470,14 +467,20 @@ RT_PROGRAM void closest_hit_radiance3()
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
 
-        prd_radiance.d2min = distancetolight-shadow_prd.distance;//min(prd_radiance.d2min, distancetolight-shadow_prd.distance);
-        prd_radiance.d2max = distancetolight-shadow_prd.distance;//max(prd_radiance.d2max, distancetolight-shadow_prd.distance);
-        float scale = distancetolight/(distancetolight-shadow_prd.distance) - 1;
-        prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
+        float d2 = distancetolight - shadow_prd.distance;
+        if(d2 > scene_epsilon) {
+
+          //prd_radiance.d2min = d2;
+          prd_radiance.d2min = min(prd_radiance.d2min, d2);
+          //prd_radiance.d2max = d2;
+          prd_radiance.d2max = max(prd_radiance.d2max, d2);
+          float scale = distancetolight/(d2) - 1;
+          prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
+        }
         //prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(1/dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(dzmindl,prd_radiance.shadow_intersection);
-          //prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
+        //prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
 
       }
       /*
