@@ -298,10 +298,10 @@ RT_PROGRAM void pinhole_camera() {
     int cur_err = err_buf[launch_index];
     if(cur_err != 0)
       output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
+    output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/1000000.0) );
   }
   
   //output_buffer[launch_index] = make_color ( make_float3(zdist[launch_index].x, zdist[launch_index].y, 0) );
-  output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/1000000.0) );
 /*
   if (err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,0,(float)numIgnored/10) );
@@ -505,7 +505,6 @@ RT_PROGRAM void closest_hit_radiance3()
   //color += reflectivity * refl_prd.result;
   }*/
 
-  //dummy for now so it compiles
   float s1 = distance_summed/prd_radiance.d2min - 1.0;
   float s2 = distance_summed/prd_radiance.d2max - 1.0;
 
