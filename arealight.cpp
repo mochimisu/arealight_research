@@ -175,7 +175,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
-  _err_vis = 0;
+  _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
   _view_zmin = 0;
@@ -224,8 +224,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   // Area lights
 
   AreaLight lights[] = {
-    { make_float3(-10.0f, 15.0f, -16.0f),
-      make_float3(0.0f, 15.0f, -16.0f),
+    { make_float3(0.0f, 15.0f, -16.0f),
+      make_float3(0.0f, 10.0f, -16.0f),
       make_float3(10.0f, 15.0f, -16.0f),
       make_float3(1.0f, 1.0f, 1.0f)
     }
