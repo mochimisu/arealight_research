@@ -84,6 +84,19 @@ __device__ __inline__ float gaussFilter(float distsq, float scale)
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
 
+//marsaglia polar method
+__device__ __inline__ float2 randomGauss(float center, float std_dev, float2 sample)
+{
+  float u,v,s;
+  u = sample.x * 2 - 1;
+  v = sample.y * 2 - 1;
+  s = u*u + v*v;
+  float2 result = make_float2(
+      center+std_dev*v*sqrt(-2.0*log(s)/s),
+      center+std_dev*u*sqrt(-2.0*log(s)/s));
+  return result;
+}
+
 //
 // Pinhole camera implementation
 //
@@ -103,6 +116,8 @@ rtBuffer<float3, 2>               world_loc;
 rtBuffer<float3, 2>               n;
 rtBuffer<int, 2>                  err_buf;
 rtBuffer<float, 2>                dist_scale;
+rtBuffer<float2, 2>               zdist;
+rtBuffer<float, 2>                spp;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -138,6 +153,8 @@ RT_PROGRAM void pinhole_camera() {
     prd.brdf = true;
     shoot_ray = true;
     err_buf[launch_index] = 0;
+    zdist[launch_index] = make_float2(100000000.0,-100000000.0);
+    spp[launch_index] = 10.0;
   }
 
 
@@ -169,6 +186,8 @@ RT_PROGRAM void pinhole_camera() {
     prd.unavg_occ = 0;
     prd.depth = 0;
     prd.hit = false;
+    prd.d2min = zdist[launch_index].x;
+    prd.d2max = zdist[launch_index].y;
 
     rtTrace(top_object, ray, prd);
 
@@ -183,6 +202,8 @@ RT_PROGRAM void pinhole_camera() {
     n[launch_index] = normalize(prd.n);
 
     dist_scale[launch_index] = prd.dist_scale;
+    zdist[launch_index] = make_float2(prd.d2min, prd.d2max);
+    spp[launch_index] = prd.spp;
 
 
     if (prd.brdf)
@@ -278,6 +299,9 @@ RT_PROGRAM void pinhole_camera() {
     if(cur_err != 0)
       output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
   }
+  
+  //output_buffer[launch_index] = make_color ( make_float3(zdist[launch_index].x, zdist[launch_index].y, 0) );
+  output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/1000000.0) );
 /*
   if (err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,0,(float)numIgnored/10) );
@@ -377,8 +401,13 @@ RT_PROGRAM void closest_hit_radiance3()
      }
    */
 
+  //hardcoded sigma for now (for light intensity)
+  float sigma = 0.5;
+
   //Stratify x
   int num_occ = 0;
+  float occ_strength_tot = 0.0;
+  float distance_summed = 0.0;
   for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
     seed.x = rot_seed(seed.x, i);
 
@@ -389,6 +418,13 @@ RT_PROGRAM void closest_hit_radiance3()
       float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
+
+
+      float strength = (1/(sigma * sqrt(M_2_PI)) * exp(-(sample.x - 0.5)*(sample.x - 0.5)/(2*sigma*sigma))) *
+        (1/(sigma * sqrt(M_2_PI)) * exp(-(sample.y - 0.5)*(sample.y - 0.5)/(2*sigma*sigma)));
+
+      //it looks too strong or something
+      strength /= 3.0;
 
       /*
       //From point, choose a random direction to sample in
@@ -403,6 +439,7 @@ RT_PROGRAM void closest_hit_radiance3()
 
       if(dot(ffnormal, sampleDir) > 0.0f) {
         ++num_occ;
+        occ_strength_tot += strength;
 
         // PHONG
 
@@ -412,14 +449,14 @@ RT_PROGRAM void closest_hit_radiance3()
         float nDh = dot( ffnormal, H );
         //temporary - white light
         float3 Lc = make_float3(1,1,1);
-        colorAvg += Kd * nDl * Lc;
+        colorAvg += Kd * nDl * Lc * strength;
         if (nDh > 0)
           colorAvg += Ks * pow(nDh, phong_exp);
 
 
 
-		float3 distancevectoocc = target-hit_point;
-		float distancetolight = sqrt(distancevectoocc.x*distancevectoocc.x + distancevectoocc.y*distancevectoocc.y + distancevectoocc.z * distancevectoocc.z);
+        float3 distancevectoocc = target-hit_point;
+        float distancetolight = sqrt(distancevectoocc.x*distancevectoocc.x + distancevectoocc.y*distancevectoocc.y + distancevectoocc.z * distancevectoocc.z);
 
 
         // SHADOW
@@ -429,10 +466,13 @@ RT_PROGRAM void closest_hit_radiance3()
         shadow_prd.distance = distancetolight;
         optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
-        occlusion += shadow_prd.attenuation.x;
+        occlusion += shadow_prd.attenuation.x * strength;
 
-				float scale = distancetolight/(distancetolight-shadow_prd.distance) - 1;
+        prd_radiance.d2min = min(prd_radiance.d2min, distancetolight-shadow_prd.distance);
+        prd_radiance.d2max = max(prd_radiance.d2max, distancetolight-shadow_prd.distance);
+        float scale = distancetolight/(distancetolight-shadow_prd.distance) - 1;
         prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
+        distance_summed += distancetolight;
         //prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(1/dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(dzmindl,prd_radiance.shadow_intersection);
@@ -447,8 +487,9 @@ RT_PROGRAM void closest_hit_radiance3()
     }
   }
   //color += colorAvg/(prd_radiance.sqrt_num_samples*prd_radiance.sqrt_num_samples);
-  color += colorAvg/num_occ;
+  color += colorAvg/occ_strength_tot;
   shadow_rng_seeds[launch_index] = seed;
+  distance_summed /= (float)num_occ;
 
 
   /*
@@ -464,7 +505,27 @@ RT_PROGRAM void closest_hit_radiance3()
   //color += reflectivity * refl_prd.result;
   }*/
 
+  //dummy for now so it compiles
+  float s1 = distance_summed/prd_radiance.d2min - 1.0;
+  float s2 = distance_summed/prd_radiance.d2max - 1.0;
 
+  float ap = 1.0/360.0 * 1.0/(t_hit*tan(30.0*M_PI/180.0)); 
+  ap = ap*ap;
+
+  float al = 36.0 * sigma * sigma;
+
+  float omega_max_pix = 0.5 / (sqrt(ap));
+
+  float omega_f_y = 2.0/sigma;
+  float omega_f_x = 2.0/(s2);
+
+  float omega_star_x = omega_f_x + omega_max_pix;
+  float omega_star_y = omega_f_x + s1*omega_f_x;
+
+  float spp = (omega_star_x * omega_star_y) * (omega_star_x * omega_star_y) *
+    ap * al;
+
+  prd_radiance.spp = spp;
 
   prd_radiance.unavg_occ = occlusion;
   prd_radiance.num_occ = num_occ;

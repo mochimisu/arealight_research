@@ -130,6 +130,14 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
   _context["occ"]->set( _occ );
 
+  // samples per pixel buffer
+  Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["spp"]->set( spp );
+
+  // zmin/zmax (merge into some other buffer later
+  Buffer zdist = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
+  _context["zdist"]->set( zdist );
+
   // gauss values
   Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, 65);
   _context["gaussian_lookup"]->set( gauss_lookup );
@@ -145,20 +153,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
     0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
     0.003, 0.0 };
-
-  /*
-     const float gaussian_lookup[65] = { 0.86466, 0.86418,
-     0.86271, 0.86028, 0.85688, 0.85253, 0.84724, 0.84102, 0.83390,
-     0.82589, 0.81701, 0.80729, 0.79677, 0.78546, 0.77340, 0.76062,
-     0.74716, 0.73306, 0.71834, 0.70306, 0.68724, 0.67094, 0.65419,
-     0.63703, 0.61950, 0.60166, 0.58353, 0.56517, 0.54661, 0.52789,
-     0.50905, 0.49014, 0.47120, 0.45225, 0.43334, 0.41450, 0.39576,
-     0.37716, 0.35873, 0.34050, 0.32250, 0.30474, 0.28727, 0.27008,
-     0.25322, 0.23670, 0.22053, 0.20473, 0.18932, 0.17430, 0.15969,
-     0.14549, 0.13172, 0.11837, 0.10546, 0.09297, 0.08093, 0.06932,
-     0.05815, 0.04740, 0.03709, 0.02719, 0.01772, 0.00866, 0.00000 };
-     */
-
   for(int i=0; i<65; i++) {
     lookups[i] = gaussian_lookup[i];
   }
