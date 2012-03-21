@@ -118,6 +118,7 @@ rtBuffer<int, 2>                  err_buf;
 rtBuffer<float, 2>                dist_scale;
 rtBuffer<float2, 2>               zdist;
 rtBuffer<float, 2>                spp;
+rtBuffer<float, 2>                spp_cur;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -155,6 +156,7 @@ RT_PROGRAM void pinhole_camera() {
     err_buf[launch_index] = 0;
     zdist[launch_index] = make_float2(1000.0,0);
     spp[launch_index] = 10.0;
+    spp_cur[launch_index] = normal_rpp * normal_rpp;
   }
 
 
@@ -168,8 +170,9 @@ RT_PROGRAM void pinhole_camera() {
   }
 
 
-  if (frame == 1 && scale < 0.05 && cur_occ.x>0.01) {
-    prd.sqrt_num_samples = brute_rpp;
+  if (frame >= 1 && scale < 0.05 && cur_occ.x>0.01) {
+    prd.sqrt_num_samples = ceil(sqrt(spp[launch_index]));
+    spp_cur[launch_index] = prd.sqrt_num_samples * prd.sqrt_num_samples;
     prd.brdf = true;
     //shoot_ray = true;
     shoot_ray = false;
@@ -299,7 +302,7 @@ RT_PROGRAM void pinhole_camera() {
     int cur_err = err_buf[launch_index];
     if(cur_err != 0)
       output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
-    output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/10000.0) );
+    output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/200.0) );
   }
   
   //output_buffer[launch_index] = make_color ( make_float3(zdist[launch_index].x, zdist[launch_index].y, 0) );

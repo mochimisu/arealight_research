@@ -134,6 +134,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["spp"]->set( spp );
 
+  Buffer spp_cur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["spp_cur"]->set( spp_cur );
+
   // zmin/zmax (merge into some other buffer later
   Buffer zdist = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["zdist"]->set( zdist );
