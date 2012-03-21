@@ -170,7 +170,8 @@ RT_PROGRAM void pinhole_camera() {
   }
 
 
-  if (frame >= 1 && scale < 0.05 && cur_occ.x>0.01) {
+  //if(frame>=1) {
+  if (frame >= 1 && scale < 0.05 && cur_occ.x>0.01 && spp_cur[launch_index] < spp[launch_index]) {
     prd.sqrt_num_samples = ceil(sqrt(spp[launch_index]));
     spp_cur[launch_index] = prd.sqrt_num_samples * prd.sqrt_num_samples;
     prd.brdf = true;
@@ -302,7 +303,7 @@ RT_PROGRAM void pinhole_camera() {
     int cur_err = err_buf[launch_index];
     if(cur_err != 0)
       output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
-    output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/200.0) );
+    //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/200.0) );
   }
   
   //output_buffer[launch_index] = make_color ( make_float3(zdist[launch_index].x, zdist[launch_index].y, 0) );
