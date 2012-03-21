@@ -131,7 +131,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["occ"]->set( _occ );
 
   // samples per pixel buffer
-  Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT, _width, _height );
   _context["spp"]->set( spp );
 
   Buffer spp_cur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
@@ -317,6 +317,20 @@ Buffer Arealight::getOutputBuffer()
 void Arealight::trace( const RayGenCameraData& camera_data )
 {
   _frame_number ++;
+  /*
+  if (_frame_number == 3) {
+    std::cout << "Matrix of spp" << std:: endl;
+    Buffer spp = _context["spp"]->getBuffer();
+    float* spp_arr = reinterpret_cast<float*>( spp->map() );
+    for(unsigned int j = 0; j < _height; ++j ) {
+      for(unsigned int i = 0; i < _width; ++i ) {
+        std::cout << spp_arr[i+j*_width] <<", ";
+      }
+      std::cout << std::endl;
+    }
+    spp->unmap();
+  }
+  */
 
   if(_camera_changed) {
     _context["numAvg"]->setUint(1);
@@ -395,6 +409,7 @@ void Arealight::resetAccumulation()
 bool Arealight::keyPressed(unsigned char key, int x, int y) {
   float delta = 0.01f;
 
+  Buffer spp;
   switch(key) {
     case 'U':
     case 'u':
@@ -437,6 +452,22 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
 
 
 
+    case 'V':
+    case 'v':
+      {
+      std::cout << "Matrix of spp" << std:: endl;
+      spp = _context["spp"]->getBuffer();
+      float* spp_arr = reinterpret_cast<float*>( spp->map() );
+      for(unsigned int j = 0; j < _height; ++j ) {
+        for(unsigned int i = 0; i < _width; ++i ) {
+          std::cout << spp_arr[i+j*_width] <<", ";
+        }
+        std::cout << std::endl;
+      }
+      spp->unmap();
+
+      return true;
+      }
 
 
     case 'Q':

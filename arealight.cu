@@ -172,12 +172,18 @@ RT_PROGRAM void pinhole_camera() {
 
   //if(frame>=1) {
   if (frame >= 1 && scale < 0.05 && cur_occ.x>0.01 && spp_cur[launch_index] < spp[launch_index]) {
-    prd.sqrt_num_samples = ceil(sqrt(spp[launch_index]));
-    spp_cur[launch_index] = prd.sqrt_num_samples * prd.sqrt_num_samples;
+    int target_samp = min((int)ceil(sqrt(spp[launch_index])), 1000);
+    int new_samp = target_samp - max((int)spp_cur[launch_index], 0);
+    int sqrt_samp = ceil(sqrt((float)new_samp));
+    prd.sqrt_num_samples = sqrt_samp;
+    spp_cur[launch_index] = sqrt_samp*sqrt_samp;
     prd.brdf = true;
-    //shoot_ray = true;
-    shoot_ray = false;
+    shoot_ray = true;
+    //shoot_ray = false;
     err_buf[launch_index] = 1;
+    if(isnan(spp[launch_index])) {
+      err_buf[launch_index] = 2;
+    }
   }
 
 
@@ -303,7 +309,7 @@ RT_PROGRAM void pinhole_camera() {
     int cur_err = err_buf[launch_index];
     if(cur_err != 0)
       output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
-    //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/200.0) );
+    //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]/1000.0) );
   }
   
   //output_buffer[launch_index] = make_color ( make_float3(zdist[launch_index].x, zdist[launch_index].y, 0) );
@@ -526,7 +532,7 @@ RT_PROGRAM void closest_hit_radiance3()
   float omega_f_x = 2.0/(sigma*s2);
 
   float omega_star_x = omega_f_x + omega_max_pix;
-  float omega_star_y = omega_f_x + s1*omega_f_x;
+  float omega_star_y = omega_f_y + s1*omega_f_x;
 
   float spp = (omega_star_x * omega_star_y) * (omega_star_x * omega_star_y) *
     ap * al;
