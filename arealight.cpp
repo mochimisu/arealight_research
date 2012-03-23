@@ -472,6 +472,20 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
 
       return true;
       }
+    case 'C':
+    case 'c':
+      _sigma += 0.1;
+      _context["light_sigma"]->setFloat(_sigma);
+      std::cout << "Light sigma is now: " << _sigma << std::endl;
+      _camera_changed = true;
+      return true;
+    case 'X':
+    case 'x':
+      _sigma -= 0.1;
+      _context["light_sigma"]->setFloat(_sigma);
+      std::cout << "Light sigma is now: " << _sigma << std::endl;
+      _camera_changed = true;
+      return true;
 
 
     case 'Q':

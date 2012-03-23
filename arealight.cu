@@ -175,7 +175,7 @@ RT_PROGRAM void pinhole_camera() {
   //if(frame>=1) {
   if (frame >= 1 && scale < 0.05 && cur_occ.x>0.01 && spp_cur[launch_index] < spp[launch_index]) {
     int target_samp = min((int)ceil(sqrt(spp[launch_index])), 1000);
-    int new_samp = target_samp - max((int)spp_cur[launch_index], 0);
+    int new_samp = max((int)(target_samp - spp_cur[launch_index]), 1);
     int sqrt_samp = ceil(sqrt((float)new_samp));
     prd.sqrt_num_samples = sqrt_samp;
     spp_cur[launch_index] = sqrt_samp*sqrt_samp;
