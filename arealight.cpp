@@ -87,6 +87,8 @@ class Arealight : public SampleScene
     uint _show_brdf;
     uint _show_occ;
     float _sigma;
+    
+    Buffer light_buffer;
 };
 
 
@@ -238,7 +240,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
     }
   };
   _env_lights = lights;
-  Buffer light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
+  light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
   light_buffer->setFormat(RT_FORMAT_USER);
   light_buffer->setElementSize(sizeof(AreaLight));
   //light_buffer->setSize( sizeof(_env_lights)/sizeof(_env_lights[0]) );
@@ -417,7 +419,15 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
   switch(key) {
     case 'U':
     case 'u':
-      break;
+      {
+      float3 d = make_float3(0.1,0,0);
+      AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+      lights[0].v1 += d;
+      light_buffer->unmap();
+      
+      _camera_changed = true;
+      return true;
+      }
     case 'J':
     case 'j':
       break;
@@ -487,19 +497,6 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       _camera_changed = true;
       return true;
 
-
-    case 'Q':
-    case 'q':
-      _env_theta += delta;
-      _context["env_theta"]->setFloat(_env_theta);
-      _camera_changed = true;
-      return true;
-    case 'W':
-    case 'w':
-      _env_theta -= delta;
-      _context["env_theta"]->setFloat(_env_theta);
-      _camera_changed = true;
-      return true;
     case 'A':
     case 'a':
       std::cout << _frame_number << " Rays." << std::endl;
