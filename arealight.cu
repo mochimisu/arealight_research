@@ -22,6 +22,8 @@ rtDeclareVariable(unsigned int, shadow_ray_type , , );
 rtDeclareVariable(float,        scene_epsilon, , );
 rtDeclareVariable(rtObject,     top_object, , );
 
+rtDeclareVariable(float,          light_sigma, , );
+
 // Create ONB from normal.  Resulting W is Parallel to normal
 __device__ __inline__ void createONB( const optix::float3& n,
     optix::float3& U,
@@ -74,7 +76,7 @@ rtBuffer<float, 1>              gaussian_lookup;
 
 __device__ __inline__ float gaussFilter(float distsq, float scale)
 {
-  float sample = distsq/(scale*scale);
+  float sample = distsq/(scale*scale) * light_sigma * light_sigma;
   if (sample > 0.9999) {
     return 0.0;
   }
@@ -413,7 +415,6 @@ RT_PROGRAM void closest_hit_radiance3()
    */
 
   //hardcoded sigma for now (for light intensity)
-  float sigma = 0.5;
 
   //Stratify x
   int num_occ = 0;
@@ -431,8 +432,10 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
 
-      float strength = (1/(sigma * sqrt(M_2_PI)) * exp(-(sample.x - 0.5)*(sample.x - 0.5)/(2*sigma*sigma))) *
-        (1/(sigma * sqrt(M_2_PI)) * exp(-(sample.y - 0.5)*(sample.y - 0.5)/(2*sigma*sigma)));
+      float strength = (1/(light_sigma * sqrt(M_2_PI)) * exp(-(sample.x - 0.5) \
+            * (sample.x - 0.5)/(2*light_sigma*light_sigma))) \
+            * (1/(light_sigma * sqrt(M_2_PI)) * exp(-(sample.y - 0.5) \
+            * (sample.y - 0.5)/(2*light_sigma*light_sigma)));
 
       //it looks too strong or something
       strength /= 3.0;
@@ -524,12 +527,12 @@ RT_PROGRAM void closest_hit_radiance3()
   float ap = 1.0/360.0 * 1.0/(t_hit*tan(30.0*M_PI/180.0)); 
   ap = ap*ap;
 
-  float al = 36.0 * sigma * sigma;
+  float al = 36.0 * light_sigma * light_sigma;
 
   float omega_max_pix = 0.5 / (sqrt(ap));
 
-  float omega_f_y = 2.0/sigma;
-  float omega_f_x = 2.0/(sigma*s2);
+  float omega_f_y = 2.0/light_sigma;
+  float omega_f_x = 2.0/(light_sigma*s2);
 
   float omega_star_x = omega_f_x + omega_max_pix;
   float omega_star_y = omega_f_y + s1*omega_f_x;

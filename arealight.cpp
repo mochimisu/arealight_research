@@ -86,6 +86,7 @@ class Arealight : public SampleScene
     AreaLight * _env_lights;
     uint _show_brdf;
     uint _show_occ;
+    float _sigma;
 };
 
 
@@ -189,6 +190,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
+  
+  _sigma = 0.5;
+  _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 6;
   _brute_rpp = 6;
