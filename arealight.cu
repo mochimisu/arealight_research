@@ -178,7 +178,7 @@ RT_PROGRAM void pinhole_camera() {
     int new_samp = max((int)(target_samp - spp_cur[launch_index]), 1);
     int sqrt_samp = ceil(sqrt((float)new_samp));
     prd.sqrt_num_samples = sqrt_samp;
-    spp_cur[launch_index] = sqrt_samp*sqrt_samp;
+    spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
     prd.brdf = true;
     shoot_ray = true;
     //shoot_ray = false;
