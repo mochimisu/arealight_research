@@ -413,16 +413,18 @@ void Arealight::resetAccumulation()
 
 
 bool Arealight::keyPressed(unsigned char key, int x, int y) {
-  float delta = 0.01f;
+  float delta = 0.5f;
 
   Buffer spp;
   switch(key) {
     case 'U':
     case 'u':
       {
-      float3 d = make_float3(0.1,0,0);
+      float3 d = make_float3(delta,0,0);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
+      lights[0].v2 += d;
+      lights[0].v3 += d;
       light_buffer->unmap();
       
       _camera_changed = true;
@@ -430,20 +432,72 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       }
     case 'J':
     case 'j':
-      break;
+      {
+      float3 d = make_float3(delta,0,0);
+      AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+      lights[0].v1 -= d;
+      lights[0].v2 -= d;
+      lights[0].v3 -= d;
+      light_buffer->unmap();
+      
+      _camera_changed = true;
+      return true;
+      }
     case 'I':
     case 'i':
-      break;
+      {
+      float3 d = make_float3(0,delta,0);
+      AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+      lights[0].v1 += d;
+      lights[0].v2 += d;
+      lights[0].v3 += d;
+      light_buffer->unmap();
+      
+      _camera_changed = true;
+      return true;
+      }
     case 'K':
     case 'k':
-      break;
+      {
+      float3 d = make_float3(0,delta,0);
+      AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+      lights[0].v1 -= d;
+      lights[0].v2 -= d;
+      lights[0].v3 -= d;
+
+      light_buffer->unmap();
+      
+      _camera_changed = true;
+      return true;
+      }
       
     case 'O':
     case 'o':
-      break;
+      {
+      float3 d = make_float3(0,0,delta);
+      AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+      lights[0].v1 += d;
+      lights[0].v2 += d;
+      lights[0].v3 += d;
+      light_buffer->unmap();
+      
+      _camera_changed = true;
+      return true;
+      }
     case 'L':
     case 'l':
-      break;
+      {
+      float3 d = make_float3(0,0,delta);
+      AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+      lights[0].v1 -= d;
+      lights[0].v2 -= d;
+      lights[0].v3 -= d;
+
+      light_buffer->unmap();
+      
+      _camera_changed = true;
+      return true;
+      }
 
     case 'M':
     case 'm':
