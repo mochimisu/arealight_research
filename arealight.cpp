@@ -181,13 +181,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
-  _err_vis = 1;
+  _err_vis = 0;
   _context["err_vis"]->setUint(_err_vis);
 
   _view_zmin = 0;
   _context["view_zmin"]->setUint(_view_zmin);
 
-  _show_brdf = 0;
+  _show_brdf = 1;
   _context["show_brdf"]->setUint(_show_brdf);
 
   _show_occ = 1;
@@ -784,6 +784,7 @@ void Arealight::createGeometry()
   //geomgroup->setChild( ct+1, gis[3] );
 
   
+  /*
   GeometryGroup shadowergroup = _context->createGeometryGroup();
   shadowergroup->setChildCount( ct + 1 );
   for(int i=0; i<ct+1; i++) {
@@ -792,6 +793,7 @@ void Arealight::createGeometry()
   
   shadowergroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
+  */
 
 
   _context["top_object"]->set( geomgroup );
