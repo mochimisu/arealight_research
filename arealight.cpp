@@ -134,7 +134,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["occ"]->set( _occ );
 
   // samples per pixel buffer
-  Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT, _width, _height );
+  Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["spp"]->set( spp );
 
   Buffer spp_cur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );

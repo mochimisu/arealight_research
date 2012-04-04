@@ -157,7 +157,7 @@ RT_PROGRAM void pinhole_camera() {
     shoot_ray = true;
     err_buf[launch_index] = 0;
     zdist[launch_index] = make_float2(1000.0,0);
-    spp[launch_index] = 10.0;
+    spp[launch_index] = normal_rpp * normal_rpp;
     spp_cur[launch_index] = normal_rpp * normal_rpp;
   }
 
