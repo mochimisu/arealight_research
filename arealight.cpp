@@ -268,41 +268,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["env_theta"]->setFloat(_env_theta);
   _context["env_phi"]->setFloat(_env_phi);
 
-  //Load OBJ
-  geomgroup = _context->createGeometryGroup();
-  ObjLoader* loader = 0;
-  std::string obj_file;
-  obj_file = "plant.obj";
-  //obj_file = "bunny.obj";
-  //obj_file = "sphere.obj";
-
-  //just for an ex
-
-  //Material
-  Material mat = _context->createMaterial();
-  mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
-
-  mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  mat["Kd"]->setFloat( .40f, 0.8f, .23f );
-  mat["Ks"]->setFloat( 1.0f, 1.0f, 1.0f );
-  mat["phong_exp"]->setFloat( 88 );
-  mat["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
-  mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );  
-  mat["obj_id"]->setInt(10);
-
-  //Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
-  Matrix4x4 obj_xform = Matrix4x4::identity() * Matrix4x4::scale(make_float3(1.0));
-
-
-  loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
-  loader->load(obj_xform);  
-
   // Populate scene hierarchy
   createGeometry();
-
-  _context["top_object"]->set( geomgroup );
-  _context["top_shadower"]->set( geomgroup );
 
   //Initialize progressive accumulation
   resetAccumulation();
@@ -746,11 +713,67 @@ void Arealight::createGeometry()
     glass_matl["shadow_attenuation"]->setFloat( 0.4f, 0.7f, 0.4f );
   }
 
+  
+  // Create box
+  Geometry lightParallelogram = _context->createGeometry();
+  lightParallelogram->setPrimitiveCount( 1u );
+  lightParallelogram->setBoundingBoxProgram( _context->createProgramFromPTXFile( pgram_ptx, "bounds" ) );
+  lightParallelogram->setIntersectionProgram( _context->createProgramFromPTXFile( pgram_ptx, "intersect" ) );
+  float3 lanchor = make_float3(0.0f, 15.0f, -16.0f);
+  float3 lv1 = make_float3(0.0f, 10.0f, -16.0f);
+  float3 lv2 = make_float3(10.0f, 15.0f, -16.0f);
+  float3 lnormal = cross( v2, v1 );
+
+  lnormal = normalize( lnormal );
+  float ld = dot( lnormal, lanchor );
+  lv1 *= 1.0f/dot( lv1, lv1 );
+  lv2 *= 1.0f/dot( lv2, lv2 );
+  float4 lplane = make_float4( lnormal, ld );
+  lightParallelogram["plane"]->setFloat( lplane );
+  lightParallelogram["v1"]->setFloat( lv1 );
+  lightParallelogram["v2"]->setFloat( lv2 );
+  lightParallelogram["anchor"]->setFloat( lanchor );
+
+  
+  //Load OBJ
+  geomgroup = _context->createGeometryGroup();
+  ObjLoader* loader = 0;
+  std::string obj_file;
+  obj_file = "plant.obj";
+  //obj_file = "bunny.obj";
+  //obj_file = "sphere.obj";
+
+  //just for an ex
+
+  //Material
+  Material mat = _context->createMaterial();
+  mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+
+  mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  mat["Kd"]->setFloat( .40f, 0.8f, .23f );
+  mat["Ks"]->setFloat( 1.0f, 1.0f, 1.0f );
+  mat["phong_exp"]->setFloat( 88 );
+  mat["reflectivity"]->setFloat( 0.05f, 0.05f, 0.05f );
+  mat["reflectivity_n"]->setFloat( 0.2f, 0.2f, 0.2f );  
+  mat["obj_id"]->setInt(10);
+
+  //Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
+  Matrix4x4 obj_xform = Matrix4x4::identity() * Matrix4x4::scale(make_float3(1.0));
+
+
+  loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
+  loader->load(obj_xform);  
+
+
+
   // Create GIs for each piece of geometry
   std::vector<GeometryInstance> gis;
   gis.push_back( _context->createGeometryInstance( box, &box_matl, &box_matl+1 ) );
   gis.push_back( _context->createGeometryInstance( parallelogram, &floor_matl, &floor_matl+1 ) );
-  //gis.push_back( _context->createGeometryInstance( sphere, &sph_matl, &sph_matl+1 ) );
+  gis.push_back( _context->createGeometryInstance( sphere, &sph_matl, &sph_matl+1 ) );
+  gis.push_back( _context->createGeometryInstance( lightParallelogram, &box_matl, &box_matl+1 ) );
+
   if(chull.get())
     gis.push_back( _context->createGeometryInstance( chull, &glass_matl, &glass_matl+1 ) );
 
@@ -758,18 +781,37 @@ void Arealight::createGeometry()
   int ct = geomgroup->getChildCount();
   geomgroup->setChildCount( ct + 1 );
   geomgroup->setChild( ct, gis[1] );
+  //geomgroup->setChild( ct+1, gis[3] );
 
+  
+  GeometryGroup shadowergroup = _context->createGeometryGroup();
+  shadowergroup->setChildCount( ct + 1 );
+  for(int i=0; i<ct+1; i++) {
+    shadowergroup->setChild(i,geomgroup->getChild(i));
+  }
+  
+  shadowergroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
+
+
+
+  _context["top_object"]->set( geomgroup );
+  _context["top_shadower"]->set( geomgroup );
+
+
+
+/*
   GeometryGroup geometrygroup = _context->createGeometryGroup();
   geometrygroup->setChildCount( static_cast<unsigned int>(gis.size()) );
   geometrygroup->setChild( 0, gis[0] );
   geometrygroup->setChild( 1, gis[1] );
-  //geometrygroup->setChild( 2, gis[2] );
+  geometrygroup->setChild( 2, gis[2] );
   if(chull.get())
     geometrygroup->setChild( 3, gis[3] );
   geometrygroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
   _context["top_object"]->set( geometrygroup );
   _context["top_shadower"]->set( geometrygroup );
+  */
 }
 
 
