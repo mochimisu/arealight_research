@@ -216,6 +216,7 @@ RT_PROGRAM void pinhole_camera() {
     dist_scale[launch_index] = prd.dist_scale;
     zdist[launch_index] = make_float2(min(prd.d2min, zdist[launch_index].x), 
         max(prd.d2max, zdist[launch_index].y));
+    if(frame==0)
     spp[launch_index] = min(prd.spp,400.0);
 
 
