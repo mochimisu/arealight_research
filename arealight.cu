@@ -182,7 +182,7 @@ RT_PROGRAM void pinhole_camera() {
     prd.brdf = false;
     shoot_ray = true;
     //shoot_ray = false;
-    //err_buf[launch_index] = 1;
+    err_buf[launch_index] = 1;
     if(isnan(spp[launch_index])) {
       err_buf[launch_index] = 2;
     }
