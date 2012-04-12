@@ -70,6 +70,7 @@ class Arealight : public SampleScene
     uint _blur_occ;
     uint _err_vis;
     uint _view_zmin;
+    uint _lin_sep_blur;
 
     uint _normal_rpp;
     uint _brute_rpp;
@@ -133,6 +134,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
   _context["occ"]->set( _occ );
 
+  // Blurred (on one dimension) cclusion accumulation buffer
+  Buffer _occ_blur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["occ_blur1d"]->set( _occ_blur );
+
   // samples per pixel buffer
   Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["spp"]->set( spp );
@@ -145,7 +150,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["zdist"]->set( zdist );
 
   // gauss values
-  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, 65);
+  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
@@ -181,11 +186,14 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
-  _err_vis = 0;
+  _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
   _view_zmin = 0;
   _context["view_zmin"]->setUint(_view_zmin);
+
+  _lin_sep_blur = 1;
+  _context["lin_sep_blur"]->setUint(_lin_sep_blur);
 
   _show_brdf = 1;
   _context["show_brdf"]->setUint(_show_brdf);
@@ -549,6 +557,15 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         std::cout << "View ZMin: On" << std::endl;
       else
         std::cout << "View ZMin: Off" << std::endl;
+      return true;
+      
+    case '\'':
+      _lin_sep_blur = 1-_lin_sep_blur;
+      _context["lin_sep_blur"]->setUint(_lin_sep_blur);
+      if (_lin_sep_blur)
+        std::cout << "Linearly Separable Blur: On" << std::endl;
+      else
+        std::cout << "Linearly Separable Blur: Off" << std::endl;
       return true;
     case 'P':
     case 'p':
