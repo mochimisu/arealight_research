@@ -180,16 +180,14 @@ RT_PROGRAM void pinhole_camera() {
     int target_samp = ceil(spp[launch_index]);
     int new_samp = max((int)ceil(target_samp - spp_cur[launch_index]), 1);
     int sqrt_samp = min(ceil(sqrt((float)new_samp)),7.0);
-    prd.sqrt_num_samples = sqrt_samp;
-    spp_cur[launch_index] = spp[launch_index]+sqrt_samp*sqrt_samp;
+    //prd.sqrt_num_samples = sqrt_samp;
+    //spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
+    prd.sqrt_num_samples = 1;
+    spp_cur[launch_index] = spp_cur[launch_index]+1;
     prd.brdf = false;
     shoot_ray = true;
     //shoot_ray = false;
     err_buf[launch_index] = 1;
-    //if(isnan(spp[launch_index])) {
-    if(spp_cur[launch_index] < spp[launch_index]) {
-      err_buf[launch_index] = 2;
-    }
   }
 
 
