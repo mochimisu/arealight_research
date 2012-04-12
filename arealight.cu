@@ -180,10 +180,10 @@ RT_PROGRAM void pinhole_camera() {
     int target_samp = ceil(spp[launch_index]);
     int new_samp = max((int)ceil(target_samp - spp_cur[launch_index]), 1);
     int sqrt_samp = min(ceil(sqrt((float)new_samp)),7.0);
-    //prd.sqrt_num_samples = sqrt_samp;
-    //spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
-    prd.sqrt_num_samples = 1;
-    spp_cur[launch_index] = spp_cur[launch_index]+1;
+    prd.sqrt_num_samples = sqrt_samp;
+    spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
+    //prd.sqrt_num_samples = 1;
+    //spp_cur[launch_index] = spp_cur[launch_index]+1;
     prd.brdf = false;
     shoot_ray = true;
     //shoot_ray = false;
@@ -538,13 +538,16 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
 
-      float strength = (1/(light_sigma * sqrt(M_2_PI)) * exp(-(sample.x - 0.5) \
+      float strength = (exp(-(sample.x - 0.5) \
             * (sample.x - 0.5)/(2*light_sigma*light_sigma))) \
             * (1/(light_sigma * sqrt(M_2_PI)) * exp(-(sample.y - 0.5) \
             * (sample.y - 0.5)/(2*light_sigma*light_sigma)));
 
+      //what does this term do?
+      //strength *= 1/(light_sigma * sqrt(M_2_PI));
+
       //it looks too strong or something
-      strength /= 3.0;
+      //strength /= 3.0;
 
       /*
       //From point, choose a random direction to sample in
