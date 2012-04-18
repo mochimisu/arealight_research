@@ -17,7 +17,15 @@
 #include <sstream>
 #include <math.h>
 #include <time.h>
+#include <limits>
 #include "random.h"
+
+//Guh, just to measure time...
+#define WINDOWS_TIME
+#define SPP_STATS
+#ifdef WINDOWS_TIME
+#include <Mmsystem.h>
+#endif
 
 using namespace optix;
 
@@ -80,7 +88,8 @@ class Arealight : public SampleScene
     float _zmin_rpp_scale;
     bool _converged;
 
-    time_t _started_render;
+    int _started_render;
+    int _started_blur;
 
     Buffer testBuf;
 
@@ -139,10 +148,19 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["occ_blur1d"]->set( _occ_blur );
 
   // samples per pixel buffer
+#ifdef SPP_STATS
+  Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT, _width, _height );
+#else
   Buffer spp = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+#endif
   _context["spp"]->set( spp );
 
+  // current samples per pixel buffer
+#ifdef SPP_STATS
+  Buffer spp_cur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT, _width, _height );
+#else
   Buffer spp_cur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+#endif
   _context["spp_cur"]->set( spp_cur );
 
   // zmin/zmax (merge into some other buffer later
@@ -176,9 +194,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   Buffer n = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["n"]->set( n );
-
-  Buffer err_buf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  _context["err_buf"]->set( err_buf );
 
   Buffer dist_scale = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_scale"]->set( dist_scale );
@@ -294,7 +309,6 @@ Buffer Arealight::getOutputBuffer()
   return _context["output_buffer"]->getBuffer();
 }
 
-
 void Arealight::trace( const RayGenCameraData& camera_data )
 {
   _frame_number ++;
@@ -339,23 +353,21 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
       static_cast<unsigned int>(buffer_height) );
 
-  if (_frame_number == _normal_rpp) {
-    time_t end;
-    time(&end);
-    std::cout << "Blurred rays done: " << (float)difftime(end,_started_render) << "s" << std::endl;
+  if (_frame_number == 0) {
+    int cur_time = timeGetTime();
+    std::cout << "First rays done: " << (cur_time - _started_render) << "ms" << std::endl;
+  }
+  if (_frame_number == 1) {
+    int cur_time = timeGetTime();
+    _started_blur = cur_time;
+    std::cout << "Second rays done: " << (cur_time - _started_render) << "ms" << std::endl;
+    std::cout << "Starting blur (2 frames)..." << std::endl;
   }
 
-
-  if (_frame_number == _brute_rpp) {
-    time_t end;
-    time(&end);
-    std::cout << "Brute force Done: " << difftime(end,_started_render) << "s" << std::endl;
-  }
-
-  if (_frame_number == _brute_rpp+1) {
-    time_t end;
-    time(&end);
-    std::cout << "Total render done (including blur): " << difftime(end,_started_render) << "s" << std::endl;
+  if (_frame_number == 3) {
+    int cur_time = timeGetTime();
+    std::cout << "Total render done (including blur): " << (cur_time - _started_render) << "ms" << std::endl;
+    std::cout << "Blur time: " << (cur_time - _started_blur) << "ms" << std::endl;
   }
 
 }
@@ -383,9 +395,8 @@ void Arealight::resetAccumulation()
   _frame_number = 0;
   _context["frame"]->setUint( _frame_number );
   _converged = false;
-  time(&_started_render);
+  _started_render = timeGetTime();
 }
-
 
 bool Arealight::keyPressed(unsigned char key, int x, int y) {
   float delta = 0.5f;
@@ -498,17 +509,34 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
     case 'V':
     case 'v':
       {
-      std::cout << "Matrix of spp" << std:: endl;
-      spp = _context["spp"]->getBuffer();
+#ifdef SPP_STATS
+      std::cout << "SPP stats" << std:: endl;
+      //spp = _context["spp"]->getBuffer();
+      spp = _context["spp_cur"]->getBuffer();
+      float min_spp = 100000000.0; //For some reason, numeric_limits gives me something weird in the end? //std::numeric_limits<float>::max();
+      float max_spp = 0.0;
+      float avg_spp = 0.0;
+      //float* spp_arr = reinterpret_cast<float*>( spp->map() );
       float* spp_arr = reinterpret_cast<float*>( spp->map() );
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
-          std::cout << spp_arr[i+j*_width] <<", ";
+          //std::cout << spp_arr[i+j*_width] <<", ";
+          float cur_spp = spp_arr[i+j*_width];
+          min_spp = min(min_spp,cur_spp);
+          max_spp = max(max_spp,cur_spp);
+          avg_spp += cur_spp;
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
       }
-      spp->unmap();
+      avg_spp /= _width * _height;
 
+      std::cout << "Minimum SPP: " << min_spp << std::endl;
+      std::cout << "Maximum SPP: " << max_spp << std::endl;
+      std::cout << "Average SPP: " << avg_spp << std::endl;
+      spp->unmap();
+#else
+        std::cout << "SPP stats turned off (GPU local buffer)" << std::endl;
+#endif
       return true;
       }
     case 'C':
