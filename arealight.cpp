@@ -21,11 +21,15 @@
 #include "random.h"
 #include <vector>
 
-//Guh, just to measure time...
+//Config flags to do stuff
+// Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
+
+#define BENCHMARK_NUM 100
+
+//Guh, just to measure time...
 #ifdef WINDOWS_TIME
-#include <Mmsystem.h>
 #include <WinBase.h>
 #endif
 
@@ -45,6 +49,8 @@ class Arealight : public SampleScene
   {
     // reserve some space for timings vector
     _timings.reserve(4);
+    _benchmark_iter = 0;
+    _benchmark_timings.reserve(4);
   }
 
     // From SampleScene
@@ -106,6 +112,9 @@ class Arealight : public SampleScene
     float _sigma;
     
     Buffer light_buffer;
+
+    int _benchmark_iter;    std::vector<double> _benchmark_timings;
+    
 };
 
 
@@ -208,7 +217,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
-  _err_vis = 1;
+  _err_vis = 0;
   _context["err_vis"]->setUint(_err_vis);
 
   _view_zmin = 0;
@@ -338,6 +347,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     _context["numAvg"]->setUint(1);
     _camera_changed = false;
     resetAccumulation();
+    _benchmark_iter = 0;
   }
   _context["eye"]->setFloat( camera_data.eye );
   _context["U"]->setFloat( camera_data.U );
@@ -356,7 +366,9 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   buffer->getSize( buffer_width, buffer_height );
   _context["frame"]->setUint( _frame_number );
 
-
+#ifdef BENCHMARK_NUM
+  if(_benchmark_iter < BENCHMARK_NUM)
+#endif
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
       static_cast<unsigned int>(buffer_height) );
 
@@ -392,11 +404,12 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     _timings[2] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
     _timings[3] = (double(cur_time.QuadPart - _started_blur.QuadPart)/_perf_freq);
     //print stuff at end so we dont get slowdown due to cout
+#ifndef BENCHMARK_NUM
     std::cout << "First rays done: " << _timings[0] << "ms" << std::endl;
     std::cout << "Second rays done: " << _timings[1] << "ms" << std::endl;
     std::cout << "Total render done: " << _timings[2] << "ms" << std::endl;
     std::cout << "Blur time: " << _timings[3] << "ms" << std::endl;
-    
+#endif
     
     /*
     int cur_time = timeGetTime();
@@ -404,6 +417,29 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     std::cout << "Blur time: " << (cur_time - _started_blur) << "ms" << std::endl;
     */
   }
+
+#ifdef BENCHMARK_NUM
+  if (_frame_number == 3) {
+    _benchmark_timings[0] += _timings[0];
+    _benchmark_timings[1] += _timings[1];
+    _benchmark_timings[2] += _timings[2];
+    _benchmark_timings[3] += _timings[3];
+    resetAccumulation();
+    _benchmark_iter++;
+  }
+  if (_benchmark_iter == BENCHMARK_NUM) {
+    _benchmark_timings[0] /= BENCHMARK_NUM;
+    _benchmark_timings[1] /= BENCHMARK_NUM;
+    _benchmark_timings[2] /= BENCHMARK_NUM;
+    _benchmark_timings[3] /= BENCHMARK_NUM;
+    std::cout << "Benchmark results for " << BENCHMARK_NUM  << " attempts" << std::endl;;
+    std::cout << "First rays done: " << _benchmark_timings[0] << "ms" << std::endl;
+    std::cout << "Second rays done: " << _benchmark_timings[1] << "ms" << std::endl;
+    std::cout << "Total render done: " << _benchmark_timings[2] << "ms" << std::endl;
+    std::cout << "Blur time: " << _benchmark_timings[3] << "ms" << std::endl;
+    _benchmark_iter++;
+  }
+#endif
 
 }
 
@@ -437,6 +473,7 @@ void Arealight::resetAccumulation()
   QueryPerformanceFrequency(&freq);
   _perf_freq = double(freq.QuadPart)/1000.0;
 }
+
 
 bool Arealight::keyPressed(unsigned char key, int x, int y) {
   float delta = 0.5f;
