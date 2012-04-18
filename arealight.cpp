@@ -26,7 +26,7 @@
 #define WINDOWS_TIME
 #define SPP_STATS
 
-#define BENCHMARK_NUM 100
+//#define BENCHMARK_NUM 100
 
 //Guh, just to measure time...
 #ifdef WINDOWS_TIME
@@ -236,7 +236,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
-  _brute_rpp = 6;
+  //_normal_rpp = 6;
+  //_brute_rpp = 6;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
