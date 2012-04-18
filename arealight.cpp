@@ -20,6 +20,8 @@
 #include <limits>
 #include "random.h"
 #include <vector>
+#include <iostream>
+#include <iomanip>
 
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
@@ -117,6 +119,8 @@ class Arealight : public SampleScene
     
 };
 
+Arealight* _scene;
+int output_num = 0;
 
 void Arealight::initScene( InitialCameraData& camera_data )
 {
@@ -634,7 +638,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
 
     case 'A':
     case 'a':
-      std::cout << _frame_number << " Rays." << std::endl;
+      std::cout << _frame_number << " frames." << std::endl;
       return true;
     case 'B':
     case 'b':
@@ -695,6 +699,17 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       _pixel_radius -= make_int2(1,1);
       _context["pixel_radius"]->setInt(_pixel_radius);
       std::cout << "Pixel radius now: " << _pixel_radius.x << "," << _pixel_radius.y << std::endl;
+      return true;
+    case 'S':
+    case 's':
+      std::stringstream fname;
+      fname << "output_";
+      fname << std::setw(7) << std::setfill('0') << output_num;
+      fname << ".ppm";
+      Buffer output_buf = _scene->getOutputBuffer();
+      sutilDisplayFilePPM(fname.str().c_str(), output_buf->get());
+      output_num++;
+      std::cout << "Saved file" << std::endl;
       return true;
   }
   return false;
@@ -956,6 +971,25 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
     << "        --dim=<width>x<height>               Set image dimensions\n"
     << std::endl;
 
+  std::cout
+    << "Key bindings:" << std::endl
+    << "c/x: Increase/decrease light sigma" << std::endl
+    << "a: Current frame number" << std::endl
+    << "b: Toggle filtering" << std::endl
+    << "e: Toggle error visualization" << std::endl
+    << "z: Toggle Zmin view" << std::endl
+
+    // This stuff is hardcoded for now
+    //<< "\\ Toggle Linearly Separable Blur" << std::endl
+    //<< "p: Toggle Progressive Blur" << std::endl
+
+    << "./,: Increase/decrease pixel radius" << std::endl
+    << "v: Output SPP stats" << std::endl
+    << "m: Toggle BRDF display" << std::endl
+    << "n: Toggle Occlusion" << std::endl
+    << "u/j, i/k, o/l: Increase/decrease light in x,y,z" << std::endl
+    << std::endl;
+
   if ( doExit ) exit(1);
 }
 
@@ -999,11 +1033,11 @@ int main( int argc, char** argv )
   std::stringstream title;
   title << "arealight";
   try {
-    Arealight scene(texture_path);
-    scene.setDimensions( width, height );
+    _scene = new Arealight(texture_path);
+    _scene->setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
-    GLUTDisplay::run( title.str(), &scene, GLUTDisplay::CDProgressive );
+    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
