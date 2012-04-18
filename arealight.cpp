@@ -19,12 +19,14 @@
 #include <time.h>
 #include <limits>
 #include "random.h"
+#include <vector>
 
 //Guh, just to measure time...
 #define WINDOWS_TIME
 #define SPP_STATS
 #ifdef WINDOWS_TIME
 #include <Mmsystem.h>
+#include <WinBase.h>
 #endif
 
 using namespace optix;
@@ -40,7 +42,10 @@ class Arealight : public SampleScene
     Arealight(const std::string& texture_path)
       : SampleScene(), _width(1080u), _height(720u), texture_path( texture_path )
         , _frame_number( 0 ), _keep_trying( 1 )
-  {}
+  {
+    // reserve some space for timings vector
+    _timings.reserve(4);
+  }
 
     // From SampleScene
     void   initScene( InitialCameraData& camera_data );
@@ -88,8 +93,10 @@ class Arealight : public SampleScene
     float _zmin_rpp_scale;
     bool _converged;
 
-    int _started_render;
-    int _started_blur;
+    LARGE_INTEGER _started_render;
+    LARGE_INTEGER _started_blur;
+    double _perf_freq;
+    std::vector<double> _timings;
 
     Buffer testBuf;
 
@@ -219,7 +226,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _sigma = 0.5;
   _context["light_sigma"]->setFloat(_sigma);
 
-  _normal_rpp = 6;
+  _normal_rpp = 4;
   _brute_rpp = 6;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -354,20 +361,48 @@ void Arealight::trace( const RayGenCameraData& camera_data )
       static_cast<unsigned int>(buffer_height) );
 
   if (_frame_number == 0) {
+    /*
     int cur_time = timeGetTime();
     std::cout << "First rays done: " << (cur_time - _started_render) << "ms" << std::endl;
+    */
+    LARGE_INTEGER cur_time;
+    QueryPerformanceCounter(&cur_time);
+    //std::cout << "First rays done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
+    _timings[0] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
   }
-  if (_frame_number == 1) {
+  if (_frame_number == 1) {
+    LARGE_INTEGER cur_time;
+    QueryPerformanceCounter(&cur_time);
+    //std::cout << "Second rays done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
+    _timings[1] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
+    _started_blur = cur_time;
+    /*  
     int cur_time = timeGetTime();
     _started_blur = cur_time;
     std::cout << "Second rays done: " << (cur_time - _started_render) << "ms" << std::endl;
     std::cout << "Starting blur (2 frames)..." << std::endl;
+    */
   }
 
-  if (_frame_number == 3) {
+  if (_frame_number == 3) {
+    LARGE_INTEGER cur_time;
+    QueryPerformanceCounter(&cur_time);
+    //std::cout << "Total render done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
+    //std::cout << "Blur time: " << (double(cur_time.QuadPart - _started_blur.QuadPart)/_perf_freq) << "ms" << std::endl;
+    _timings[2] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
+    _timings[3] = (double(cur_time.QuadPart - _started_blur.QuadPart)/_perf_freq);
+    //print stuff at end so we dont get slowdown due to cout
+    std::cout << "First rays done: " << _timings[0] << "ms" << std::endl;
+    std::cout << "Second rays done: " << _timings[1] << "ms" << std::endl;
+    std::cout << "Total render done: " << _timings[2] << "ms" << std::endl;
+    std::cout << "Blur time: " << _timings[3] << "ms" << std::endl;
+    
+    
+    /*
     int cur_time = timeGetTime();
     std::cout << "Total render done (including blur): " << (cur_time - _started_render) << "ms" << std::endl;
     std::cout << "Blur time: " << (cur_time - _started_blur) << "ms" << std::endl;
+    */
   }
 
 }
@@ -395,7 +430,12 @@ void Arealight::resetAccumulation()
   _frame_number = 0;
   _context["frame"]->setUint( _frame_number );
   _converged = false;
-  _started_render = timeGetTime();
+  //_started_render = timeGetTime();
+  QueryPerformanceCounter(&_started_render);
+
+  LARGE_INTEGER freq;
+  QueryPerformanceFrequency(&freq);
+  _perf_freq = double(freq.QuadPart)/1000.0;
 }
 
 bool Arealight::keyPressed(unsigned char key, int x, int y) {
@@ -916,6 +956,7 @@ int main( int argc, char** argv )
   if( texture_path.empty() ) {
     texture_path = std::string( sutilSamplesDir() ) + "/arealight/data";
   }
+
 
   std::stringstream title;
   title << "arealight";
