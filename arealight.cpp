@@ -115,7 +115,8 @@ class Arealight : public SampleScene
     
     Buffer light_buffer;
 
-    int _benchmark_iter;    std::vector<double> _benchmark_timings;
+    int _benchmark_iter;
+    std::vector<double> _benchmark_timings;
     
 };
 
@@ -221,7 +222,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
-  _err_vis = 0;
+  _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
   _view_zmin = 0;
@@ -240,7 +241,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
-  //_normal_rpp = 6;
+  //_normal_rpp = 6;i
   //_brute_rpp = 6;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -297,8 +298,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( 7.0f, 9.2f, -6.0f ), // eye
-      make_float3( 0.0f, 4.0f,  0.0f ), // lookat
+  camera_data = InitialCameraData( make_float3( 7.0f, 9.2f, 6.0f ), // eye
+      make_float3( 0.0f, 2.0f,  0.0f ), // lookat
       make_float3( 0.0f, 1.0f,  0.0f ), // up
       60.0f );                          // vfov
 
@@ -387,7 +388,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     //std::cout << "First rays done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
     _timings[0] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
   }
-  if (_frame_number == 1) {
+  if (_frame_number == 1) {
+
     LARGE_INTEGER cur_time;
     QueryPerformanceCounter(&cur_time);
     //std::cout << "Second rays done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
@@ -401,7 +403,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     */
   }
 
-  if (_frame_number == 3) {
+  if (_frame_number == 3) {
+
     LARGE_INTEGER cur_time;
     QueryPerformanceCounter(&cur_time);
     //std::cout << "Total render done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
@@ -594,28 +597,47 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
 #ifdef SPP_STATS
       std::cout << "SPP stats" << std:: endl;
       //spp = _context["spp"]->getBuffer();
-      spp = _context["spp_cur"]->getBuffer();
+      Buffer cur_spp = _context["spp_cur"]->getBuffer();
+      spp = _context["spp"]->getBuffer();
+      float min_cur_spp = 10000000.0;
+      float max_cur_spp = 0.0;
+      float avg_cur_spp = 0.0;
       float min_spp = 100000000.0; //For some reason, numeric_limits gives me something weird in the end? //std::numeric_limits<float>::max();
       float max_spp = 0.0;
       float avg_spp = 0.0;
       //float* spp_arr = reinterpret_cast<float*>( spp->map() );
       float* spp_arr = reinterpret_cast<float*>( spp->map() );
+      float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
           //std::cout << spp_arr[i+j*_width] <<", ";
-          float cur_spp = spp_arr[i+j*_width];
-          min_spp = min(min_spp,cur_spp);
-          max_spp = max(max_spp,cur_spp);
-          avg_spp += cur_spp;
+          float cur_spp_val = spp_arr[i+j*_width];
+          min_spp = min(min_spp,cur_spp_val);
+          max_spp = max(max_spp,cur_spp_val);
+          avg_spp += cur_spp_val;
         }
         //std::cout << std::endl;
       }
       avg_spp /= _width * _height;
-
-      std::cout << "Minimum SPP: " << min_spp << std::endl;
-      std::cout << "Maximum SPP: " << max_spp << std::endl;
-      std::cout << "Average SPP: " << avg_spp << std::endl;
+      for(unsigned int j = 0; j < _height; ++j ) {
+        for(unsigned int i = 0; i < _width; ++i ) {
+          //std::cout << spp_arr[i+j*_width] <<", ";
+          float cur_spp_val = cur_spp_arr[i+j*_width];
+          min_cur_spp = min(min_cur_spp,cur_spp_val);
+          max_cur_spp = max(max_cur_spp,cur_spp_val);
+          avg_cur_spp += cur_spp_val;
+        }
+        //std::cout << std::endl;
+      }
+      avg_cur_spp /= _width * _height;
+      std::cout << "Minimum SPP: " << min_cur_spp << std::endl;
+      std::cout << "Maximum SPP: " << max_cur_spp << std::endl;
+      std::cout << "Average SPP: " << avg_cur_spp << std::endl;
+      std::cout << "Minimum Theoretical SPP: " << min_spp << std::endl;
+      std::cout << "Maximum Theoretical SPP: " << max_spp << std::endl;
+      std::cout << "Average Theoretical SPP: " << avg_spp << std::endl;
       spp->unmap();
+      cur_spp->unmap();
 #else
         std::cout << "SPP stats turned off (GPU local buffer)" << std::endl;
 #endif

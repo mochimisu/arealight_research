@@ -168,7 +168,8 @@ RT_PROGRAM void pinhole_camera() {
 
 
   //if(frame>=1) {
-  if (frame == 1 && spp_cur[launch_index] < spp[launch_index]) {
+  
+  if (frame >= 1 && spp_cur[launch_index] < spp[launch_index]) {
     int target_samp = ceil(spp[launch_index]);
     int new_samp = max((int)ceil(target_samp - spp_cur[launch_index]), 1);
     int sqrt_samp = min(ceil(sqrt((float)new_samp)),7.0);
@@ -181,6 +182,17 @@ RT_PROGRAM void pinhole_camera() {
     //shoot_ray = false;
     cur_err = 1;
   }
+  
+  /*
+
+  if (frame >= 1) {
+    prd.brdf = false;
+    shoot_ray = true;
+    int sqrt_samp = 5;
+    prd.sqrt_num_samples = sqrt_samp;
+    spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
+  }
+  */
 
 
   float3 cur_world_loc = make_float3(0.0);
@@ -571,7 +583,7 @@ RT_PROGRAM void closest_hit_radiance3()
   float s1 = distance_summed/prd_radiance.d2min - 1.0;
   float s2 = distance_summed/prd_radiance.d2max - 1.0;
 
-  float spp = 4.0*(1.0+s1/s2)*(1.0+s1/s2);
+  //float spp = 4.0*(1.0+s1/s2)*(1.0+s1/s2);
 
   /*
   float ap = 1.0/360.0 * 1.0/(t_hit*tan(30.0*M_PI/180.0)); 
@@ -590,6 +602,14 @@ RT_PROGRAM void closest_hit_radiance3()
   float spp = (omega_star_x * omega_star_y) * (omega_star_x * omega_star_y) *
     ap * al;
   */
+
+  //assume d is same in all dim
+  float d = 1.0/360.0 * 1.0/(t_hit*tan(30.0*M_PI/180.0));
+  float omega_l_max = 2.0/light_sigma;
+
+  float spp_t_1 = (1+d*(omega_l_max)/s2);
+  float spp_t_2 = (1+s1/s2);
+  float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
 
   prd_radiance.spp = spp;
 
