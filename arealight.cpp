@@ -90,7 +90,7 @@ class Arealight : public SampleScene
 
     uint _blur_occ;
     uint _err_vis;
-    uint _view_zmin;
+    uint _view_mode;
     uint _lin_sep_blur;
 
     uint _normal_rpp;
@@ -225,8 +225,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
-  _view_zmin = 0;
-  _context["view_zmin"]->setUint(_view_zmin);
+  _view_mode = 0;
+  _context["view_mode"]->setUint(_view_mode);
 
   _lin_sep_blur = 1;
   _context["lin_sep_blur"]->setUint(_lin_sep_blur);
@@ -683,14 +683,35 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'Z':
     case 'z':
-      _view_zmin = 1-_view_zmin;
-      _context["view_zmin"]->setUint(_view_zmin);
-      if (_view_zmin)
-        std::cout << "View ZMin: On" << std::endl;
-      else
-        std::cout << "View ZMin: Off" << std::endl;
+      _view_mode = (_view_mode+1)%6;
+      _context["view_mode"]->setUint(_view_mode);
+      switch(_view_mode) {
+      case 0:
+        std::cout << "View mode: Normal" << std::endl;
+        break;
+      case 1:
+        std::cout << "View mode: Scale" << std::endl;
+        break;
+      case 2:
+        std::cout << "View mode: Zmin" << std::endl;
+        _camera_changed = true;
+        break;
+      case 3:
+        std::cout << "View mode: Zmax" << std::endl;
+        _camera_changed = true;
+        break;
+      case 4:
+        std::cout << "View mode: Current SPP" << std::endl;
+        break;
+      case 5:
+        std::cout << "View mode: Theoretical SPP" << std::endl;
+        break;
+      default:
+        std::cout << "View mode: Unknown" << std::endl;
+        break;
+      }
       return true;
-      
+
     case '\'':
       _lin_sep_blur = 1-_lin_sep_blur;
       _context["lin_sep_blur"]->setUint(_lin_sep_blur);

@@ -124,7 +124,7 @@ rtBuffer<float, 2>                spp_cur;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
-rtDeclareVariable(uint,						view_zmin, , );
+rtDeclareVariable(uint,						view_mode, , );
 
 rtDeclareVariable(uint,           normal_rpp, , );
 rtDeclareVariable(uint,           brute_rpp, , );
@@ -173,10 +173,10 @@ RT_PROGRAM void pinhole_camera() {
     int target_samp = ceil(spp[launch_index]);
     int new_samp = max((int)ceil(target_samp - spp_cur[launch_index]), 1);
     int sqrt_samp = min(ceil(sqrt((float)new_samp)),7.0);
-    prd.sqrt_num_samples = sqrt_samp;
-    spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
-    //prd.sqrt_num_samples = 1;
-    //spp_cur[launch_index] = spp_cur[launch_index]+1;
+    //prd.sqrt_num_samples = sqrt_samp;
+    //spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
+    prd.sqrt_num_samples = 1;
+    spp_cur[launch_index] = spp_cur[launch_index]+1;
     prd.brdf = false;
     shoot_ray = true;
     //shoot_ray = false;
@@ -357,9 +357,31 @@ RT_PROGRAM void pinhole_camera() {
     brdf_term = brdf[launch_index];
   if (show_occ)
     occ_term = blurred_occ;
-  output_buffer[launch_index] = make_color( occ_term * brdf_term);
-  if (view_zmin)
-    output_buffer[launch_index] = make_color( make_float3(scale) );
+  if (view_mode) {
+    if (view_mode == 1) 
+      //Scale
+      output_buffer[launch_index] = make_color( make_float3(scale) );
+    if (view_mode == 2) 
+      //Zmin
+      if(shoot_ray)
+      output_buffer[launch_index] = make_color( make_float3(prd.d2min) / 100.0);
+    if (view_mode == 3) {
+      //Zmax
+      if (shoot_ray) {
+        if (prd.d2max > 0.001)
+          output_buffer[launch_index] = make_color( make_float3(prd.d2max) / 100.0);
+        else
+          output_buffer[launch_index] = make_color( make_float3(1) );
+      }
+    }
+    if (view_mode == 4) 
+      //Current SPP
+      output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
+    if (view_mode == 5) 
+      //Theoretical SPP
+      output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
+  } else
+    output_buffer[launch_index] = make_color( occ_term * brdf_term);
 /*
   if (shoot_ray && err_vis)
     output_buffer[launch_index] = make_color( make_float3(0,1,0) );
@@ -604,7 +626,7 @@ RT_PROGRAM void closest_hit_radiance3()
   */
 
   //assume d is same in all dim
-  float d = 1.0/360.0 * 1.0/(t_hit*tan(30.0*M_PI/180.0));
+  float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
   float omega_l_max = 2.0/light_sigma;
 
   float spp_t_1 = (1+d*(omega_l_max)/s2);
