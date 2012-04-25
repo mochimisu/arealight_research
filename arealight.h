@@ -70,7 +70,9 @@ struct PerRayData_radiance
 
 struct PerRayData_shadow
 {
+  bool hit;
   float3 attenuation;
-  float distance;
+  float distance_min;
+  float distance_max;
 };
 

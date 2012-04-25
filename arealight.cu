@@ -419,9 +419,15 @@ RT_PROGRAM void any_hit_shadow()
 {
   // this material is opaque, so it fully attenuates all shadow rays
   prd_shadow.attenuation = make_float3(0);
-  prd_shadow.distance = t_hit;
+  prd_shadow.hit = true;
+  //prd_shadow.distance = t_hit;
+  
+  prd_shadow.distance_min = min(prd_shadow.distance_min, t_hit);
+  prd_shadow.distance_max = max(prd_shadow.distance_max, t_hit);
 
-  rtTerminateRay();
+  rtIgnoreIntersection();
+
+  //rtTerminateRay();
 }
 
 
@@ -556,11 +562,24 @@ RT_PROGRAM void closest_hit_radiance3()
         //cast ray and check for shadow
         PerRayData_shadow shadow_prd;
         shadow_prd.attenuation = make_float3(strength);
-        shadow_prd.distance = distancetolight;
+        shadow_prd.distance_max = 0;
+        shadow_prd.distance_min = distancetolight;
+        shadow_prd.hit = false;
         optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
         occlusion += shadow_prd.attenuation.x;
+ 
+        if(shadow_prd.hit) {
+          float d2min = distancetolight - shadow_prd.distance_max;
+          float d2max = distancetolight - shadow_prd.distance_min;
 
+          prd_radiance.d2min = d2min;
+          prd_radiance.d2max = d2max;
+
+          float scale = distancetolight/d2min - 1;
+          prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
+        }
+        /*
         float d2 = distancetolight - shadow_prd.distance;
         if(d2 > scene_epsilon) {
 
@@ -570,7 +589,7 @@ RT_PROGRAM void closest_hit_radiance3()
           prd_radiance.d2max = max(prd_radiance.d2max, d2);
           float scale = distancetolight/(d2) - 1;
           prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
-        }
+        }*/
         //prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(1/dlzmin, prd_radiance.shadow_intersection);
         //prd_radiance.shadow_intersection = min(dzmindl,prd_radiance.shadow_intersection);
@@ -632,7 +651,8 @@ RT_PROGRAM void closest_hit_radiance3()
   float spp_t_1 = (1+d*(omega_l_max)/s2);
   float spp_t_2 = (1+s1/s2);
   float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
-
+  
+  
   prd_radiance.spp = spp;
 
   prd_radiance.unavg_occ = occlusion;
