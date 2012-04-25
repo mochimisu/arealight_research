@@ -77,6 +77,7 @@ class Arealight : public SampleScene
     Buffer       _brdf;
     Buffer       _occ;
     GeometryGroup geomgroup;
+    GeometryGroup geomgroup2;
 
     Buffer _conv_buffer;
 
@@ -183,6 +184,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer spp_cur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
 #endif
   _context["spp_cur"]->set( spp_cur );
+
+  Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
+  _context["slope"]->set( slope );
 
   // zmin/zmax (merge into some other buffer later
   Buffer zdist = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
@@ -607,7 +611,6 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       float avg_spp = 0.0;
       //float* spp_arr = reinterpret_cast<float*>( spp->map() );
       float* spp_arr = reinterpret_cast<float*>( spp->map() );
-      float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
           //std::cout << spp_arr[i+j*_width] <<", ";
@@ -618,7 +621,9 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         }
         //std::cout << std::endl;
       }
+      spp->unmap();
       avg_spp /= _width * _height;
+      float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
           //std::cout << spp_arr[i+j*_width] <<", ";
@@ -629,6 +634,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         }
         //std::cout << std::endl;
       }
+      cur_spp->unmap();
       avg_cur_spp /= _width * _height;
       std::cout << "Minimum SPP: " << min_cur_spp << std::endl;
       std::cout << "Maximum SPP: " << max_cur_spp << std::endl;
@@ -636,8 +642,6 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       std::cout << "Minimum Theoretical SPP: " << min_spp << std::endl;
       std::cout << "Maximum Theoretical SPP: " << max_spp << std::endl;
       std::cout << "Average Theoretical SPP: " << avg_spp << std::endl;
-      spp->unmap();
-      cur_spp->unmap();
 #else
         std::cout << "SPP stats turned off (GPU local buffer)" << std::endl;
 #endif
@@ -683,27 +687,30 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'Z':
     case 'z':
-      _view_mode = (_view_mode+1)%6;
+      _view_mode = (_view_mode+1)%7;
       _context["view_mode"]->setUint(_view_mode);
       switch(_view_mode) {
       case 0:
         std::cout << "View mode: Normal" << std::endl;
         break;
       case 1:
-        std::cout << "View mode: Scale" << std::endl;
+        std::cout << "View mode: Occlusion Only" << std::endl;
         break;
       case 2:
+        std::cout << "View mode: Scale" << std::endl;
+        break;
+      case 3:
         std::cout << "View mode: Zmin" << std::endl;
         _camera_changed = true;
         break;
-      case 3:
+      case 4:
         std::cout << "View mode: Zmax" << std::endl;
         _camera_changed = true;
         break;
-      case 4:
+      case 5:
         std::cout << "View mode: Current SPP" << std::endl;
         break;
-      case 5:
+      case 6:
         std::cout << "View mode: Theoretical SPP" << std::endl;
         break;
       default:
@@ -745,6 +752,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'S':
     case 's':
+      {
       std::stringstream fname;
       fname << "output_";
       fname << std::setw(7) << std::setfill('0') << output_num;
@@ -754,6 +762,16 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       output_num++;
       std::cout << "Saved file" << std::endl;
       return true;
+      }
+    case 'Y':
+    case 'y':
+
+      return true;
+
+        /*_context["eye"]->setFloat( camera_data.eye );
+    _context["U"]->setFloat( camera_data.U );
+    _context["V"]->setFloat( camera_data.V );
+    _context["W"]->setFloat( camera_data.W ); */
   }
   return false;
 }
@@ -918,11 +936,19 @@ void Arealight::createGeometry()
   
   //Load OBJ
   geomgroup = _context->createGeometryGroup();
+  geomgroup2 = _context->createGeometryGroup();
   ObjLoader* loader = 0;
   std::string obj_file;
-  obj_file = "plant.obj";
+  obj_file = "house2.obj";
+  //obj_file = "cherrytree2.obj";
+  //obj_file = "cherrytree.obj";
+  //obj_file = "plant.obj";
   //obj_file = "bunny.obj";
   //obj_file = "sphere.obj";
+
+  std::string obj_file2;
+  //obj_file2 = "house2.obj";
+  obj_file2 = "cherrytree2.obj";
 
   //just for an ex
 
@@ -941,12 +967,13 @@ void Arealight::createGeometry()
 
   //Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
   Matrix4x4 obj_xform = Matrix4x4::identity() * Matrix4x4::scale(make_float3(1.0));
-
+  Matrix4x4 obj_xform2 = Matrix4x4::identity() * Matrix4x4::translate(make_float3(4.0,0.0,-5.0)) * Matrix4x4::scale(make_float3(1.0));
 
   loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
   loader->load(obj_xform);  
-
-
+  
+  ObjLoader * loader2 = new ObjLoader( texpath(obj_file2).c_str(), _context, geomgroup2, mat );
+  loader2->load(obj_xform2);  
 
   // Create GIs for each piece of geometry
   std::vector<GeometryInstance> gis;
@@ -962,6 +989,12 @@ void Arealight::createGeometry()
   int ct = geomgroup->getChildCount();
   geomgroup->setChildCount( ct + 1 );
   geomgroup->setChild( ct, gis[1] );
+  ct = geomgroup->getChildCount();
+  //hacky way to add a second object, clean up later
+  int ct2 = geomgroup2->getChildCount();
+  geomgroup->setChildCount( ct + ct2 );
+  for(int i=0; i<ct2; i++)
+      geomgroup->setChild( ct+i, geomgroup2->getChild(i) );
   //geomgroup->setChild( ct+1, gis[3] );
 
   
@@ -1031,6 +1064,7 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
     << "m: Toggle BRDF display" << std::endl
     << "n: Toggle Occlusion" << std::endl
     << "u/j, i/k, o/l: Increase/decrease light in x,y,z" << std::endl
+    << "y: Output camera info" << std::endl
     << std::endl;
 
   if ( doExit ) exit(1);

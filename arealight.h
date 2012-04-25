@@ -66,6 +66,9 @@ struct PerRayData_radiance
   float d2min;
   float d2max;
   float spp;
+
+  float s1;
+  float s2;
 };
 
 struct PerRayData_shadow
