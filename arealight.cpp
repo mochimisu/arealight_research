@@ -281,11 +281,40 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // Area lights
 
+  /*
   AreaLight lights[] = {
     { make_float3(0.0f, 15.0f, -16.0f),
       make_float3(0.0f, 10.0f, -16.0f),
       make_float3(10.0f, 15.0f, -16.0f),
       make_float3(1.0f, 1.0f, 1.0f)
+    }
+  };
+  */  /*  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -5.0))
+    * Matrix4x4::rotate(-65.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
+    * Matrix4x4::rotate(-15.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
+    * Matrix4x4::scale(make_float3(10.0f,10.0f,10.0f));
+  AreaLight lights[] = {
+    { make_float3( overall_xform * make_float4(20.5556f, 18.1727f, -3.0591f, 1.0f) ),
+    make_float3( overall_xform * make_float4(20.5556f, 18.1727f, 1.0591f, 1.0f) ),
+    make_float3( overall_xform * make_float4(17.727172875f, 21.001127125, -3.0591f, 1.0f) ),
+    make_float3(1.0f, 1.0f, 1.0f)
+    }
+  };
+  */
+  /*
+  AreaLight lights[] = {
+  { make_float3( 20.5556f, 18.1727f, -3.0591f),
+  make_float3( 20.5556f, 18.1727f, -2.0591f),
+  make_float3( 17.727172875f, 21.001127125, -3.0591f),
+  make_float3(1.0f, 1.0f, 1.0f)
+  }
+  };
+  */
+  AreaLight lights[] = {
+    { make_float3( 18.5556f, 25.1727f, 10.9409f),
+    make_float3( 18.5556f, 25.1727f, 11.9409f),
+    make_float3( 15.7272f, 26.0011, 10.9409),
+    make_float3(1.0f, 1.0f, 1.0f)
     }
   };
   _env_lights = lights;
@@ -302,11 +331,16 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
+  camera_data = InitialCameraData( make_float3( 10.0f, 14.0f, -10.0f ), // eye
+    make_float3( 0.0f, 6.0f,  -7.0f ), // lookat
+    make_float3( 0.0f, 1.0f,  0.0f ), // up
+    60 );                             // vfov
+  /*
   camera_data = InitialCameraData( make_float3( 7.0f, 9.2f, 6.0f ), // eye
       make_float3( 0.0f, 2.0f,  0.0f ), // lookat
       make_float3( 0.0f, 1.0f,  0.0f ), // up
       60.0f );                          // vfov
-
+      */
   _context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
@@ -499,7 +533,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
       lights[0].v2 += d;
-      lights[0].v3 += d;
+      lights[0].v3 += d;
+      std::cout << "Light now at: " << "\n"
+      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        << std::endl;
       light_buffer->unmap();
       
       _camera_changed = true;
@@ -512,7 +551,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
       lights[0].v2 -= d;
-      lights[0].v3 -= d;
+      lights[0].v3 -= d;
+      std::cout << "Light now at: " << "\n"
+      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+      << std::endl;
       light_buffer->unmap();
       
       _camera_changed = true;
@@ -525,7 +569,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
       lights[0].v2 += d;
-      lights[0].v3 += d;
+      lights[0].v3 += d;
+      std::cout << "Light now at: " << "\n"
+      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+      << std::endl;
       light_buffer->unmap();
       
       _camera_changed = true;
@@ -538,7 +587,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
       lights[0].v2 -= d;
-      lights[0].v3 -= d;
+      lights[0].v3 -= d;
+      std::cout << "Light now at: " << "\n"
+      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+      << std::endl;
 
       light_buffer->unmap();
       
@@ -553,7 +607,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
       lights[0].v2 += d;
-      lights[0].v3 += d;
+      lights[0].v3 += d;
+      std::cout << "Light now at: " << "\n"
+      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+      << std::endl;
       light_buffer->unmap();
       
       _camera_changed = true;
@@ -566,7 +625,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
       lights[0].v2 -= d;
-      lights[0].v3 -= d;
+      lights[0].v3 -= d;
+      std::cout << "Light now at: " << "\n"
+      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+      << std::endl;
 
       light_buffer->unmap();
       
@@ -776,6 +840,141 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
   return false;
 }
 
+void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
+{
+  int ct_target = target->getChildCount();
+  int ct_source = source->getChildCount();
+  target->setChildCount(ct_target+ct_source);
+  for(int i=0; i<ct_source; i++)
+    target->setChild(ct_target + i, source->getChild(i));
+}
+
+void Arealight::createGeometry()
+{
+  //Make some temp geomgroups
+  GeometryGroup balance_geom_group = _context->createGeometryGroup();
+  GeometryGroup street_lamp_geom_group = _context->createGeometryGroup();
+  GeometryGroup street_lamp2_geom_group = _context->createGeometryGroup();
+  GeometryGroup tree_geom_group = _context->createGeometryGroup();
+  GeometryGroup tree2_geom_group = _context->createGeometryGroup();
+
+  //Set some materials
+  Material balance_mat = _context->createMaterial();
+  balance_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  balance_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  balance_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  balance_mat["Kd"]->setFloat( 0.776f, 0.321f, 0.137f );
+  balance_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  balance_mat["phong_exp"]->setFloat( 100.0f );
+  balance_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  balance_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  balance_mat["obj_id"]->setInt(10);
+
+  Material street_lamp_mat = _context->createMaterial();
+  street_lamp_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  street_lamp_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  street_lamp_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  street_lamp_mat["Kd"]->setFloat( 1.5f, 1.1f, 0.1f );
+  street_lamp_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  street_lamp_mat["phong_exp"]->setFloat( 100.0f );
+  street_lamp_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  street_lamp_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  street_lamp_mat["obj_id"]->setInt(11);
+
+  Material tree_mat = _context->createMaterial();
+  tree_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  tree_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  tree_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tree_mat["Kd"]->setFloat( 0.200f, 0.080f, 0.020f );
+  tree_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tree_mat["phong_exp"]->setFloat( 100.0f );
+  tree_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tree_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tree_mat["obj_id"]->setInt(12);
+  Material ground_mat = _context->createMaterial();
+  ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  ground_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["Kd"]->setFloat( 0.120f, 0.270f, 0.050f );
+  ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["phong_exp"]->setFloat( 100.0f );
+  ground_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["obj_id"]->setInt(13);
+
+  //Transformations
+  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -5.0))
+    * Matrix4x4::rotate(-65.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
+    * Matrix4x4::rotate(-15.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
+    * Matrix4x4::scale(make_float3(10.0f,10.0f,10.0f));
+  Matrix4x4 balance_xform = overall_xform 
+    * Matrix4x4::translate(make_float3(0.0f, 0.015f, 0.0f));
+  Matrix4x4 street_lamp_xform = overall_xform; 
+  Matrix4x4 street_lamp2_xform = overall_xform 
+    * Matrix4x4::rotate(M_PI,make_float3(0.0f, 1.0f, 0.0f));
+  Matrix4x4 tree_xform = overall_xform * Matrix4x4::identity();
+  Matrix4x4 tree2_xform = overall_xform 
+    * Matrix4x4::rotate(M_PI,make_float3(0.0f, 1.0f, 0.0f))
+    * Matrix4x4::translate(make_float3(0.5f, 0.0f, 0.5f))
+    * Matrix4x4::rotate(-20.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
+    * Matrix4x4::translate(make_float3(-0.5f, 0.0f, -0.5f))
+    * Matrix4x4::translate(make_float3(0.0f, 0.01f, 0.0f));
+
+
+
+  //Load the OBJ's
+  ObjLoader * balance_loader = new ObjLoader( texpath("bench/Balance.obj").c_str(), _context, balance_geom_group, balance_mat );
+  balance_loader->load(balance_xform);
+  ObjLoader * street_lamp_loader = new ObjLoader( texpath("bench/StreetLamp.obj").c_str(), _context, street_lamp_geom_group, street_lamp_mat );
+  street_lamp_loader->load(street_lamp_xform);
+  ObjLoader * street_lamp2_loader = new ObjLoader( texpath("bench/StreetLamp.obj").c_str(), _context, street_lamp2_geom_group, street_lamp_mat );
+  street_lamp2_loader->load(street_lamp2_xform);
+  ObjLoader * tree_loader = new ObjLoader( texpath("bench/Tree.obj").c_str(), _context, tree_geom_group, tree_mat );
+  tree_loader->load(tree_xform);
+  ObjLoader * tree2_loader = new ObjLoader( texpath("bench/Tree.obj").c_str(), _context, tree2_geom_group, tree_mat );
+  tree2_loader->load(tree2_xform);
+
+  // Floor geometry
+  std::string pgram_ptx( ptxpath( "arealight", "parallelogram.cu" ) );
+  Geometry parallelogram = _context->createGeometry();
+  parallelogram->setPrimitiveCount( 1u );
+  parallelogram->setBoundingBoxProgram( _context->createProgramFromPTXFile( pgram_ptx, "bounds" ) );
+  parallelogram->setIntersectionProgram( _context->createProgramFromPTXFile( pgram_ptx, "intersect" ) );
+  float3 anchor = make_float3( overall_xform * make_float4( -1.0f, 0.0f, -1.0f, 1.0f ) );
+  float3 v1 = make_float3( overall_xform * make_float4( 2.0f, 0.0f, 0.0f, 0.0f ) );
+  float3 v2 =  make_float3( overall_xform *make_float4( 0.0f, 0.0f, 2.0f, 0.0f ) );
+  float3 normal = cross( v2, v1 );
+  normal = normalize( normal );
+  float d = dot( normal, anchor );
+  v1 *= 1.0f/dot( v1, v1 );
+  v2 *= 1.0f/dot( v2, v2 );
+  float4 plane = make_float4( normal, d );
+  parallelogram["plane"]->setFloat( plane );
+  parallelogram["v1"]->setFloat( v1 );
+  parallelogram["v2"]->setFloat( v2 );
+  parallelogram["anchor"]->setFloat( anchor );
+
+  //Make one big geom group
+  GeometryGroup geom_group = _context->createGeometryGroup();
+  appendGeomGroup(geom_group, balance_geom_group);
+  appendGeomGroup(geom_group, street_lamp_geom_group);
+  appendGeomGroup(geom_group, street_lamp2_geom_group);
+  appendGeomGroup(geom_group, tree_geom_group);
+  appendGeomGroup(geom_group, tree2_geom_group);
+  int ct = geom_group->getChildCount();
+
+  geom_group->setChildCount( ct+1 );
+  GeometryInstance ground = _context->createGeometryInstance( parallelogram, &ground_mat, &ground_mat+1 );
+  geom_group->setChild( ct, ground );
+  //geom_group->setChild(ct, global);
+  geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
+
+  //Set the geom group
+  _context["top_object"]->set( geom_group );
+  _context["top_shadower"]->set( geom_group );
+}
+
+#if 0
 void Arealight::createGeometry()
 {
   std::string box_ptx( ptxpath( "arealight", "box.cu" ) ); 
@@ -939,7 +1138,8 @@ void Arealight::createGeometry()
   geomgroup2 = _context->createGeometryGroup();
   ObjLoader* loader = 0;
   std::string obj_file;
-  obj_file = "house2.obj";
+  obj_file = "kscene1.obj";
+  //obj_file = "house2.obj";
   //obj_file = "cherrytree2.obj";
   //obj_file = "cherrytree.obj";
   //obj_file = "plant.obj";
@@ -966,14 +1166,14 @@ void Arealight::createGeometry()
   mat["obj_id"]->setInt(10);
 
   //Matrix4x4 obj_xform = Matrix4x4::identity()* Matrix4x4::translate(make_float3(0,3,0)) * Matrix4x4::rotate(0, make_float3(1,0,0)) * Matrix4x4::scale(make_float3(3.0));
-  Matrix4x4 obj_xform = Matrix4x4::identity() * Matrix4x4::scale(make_float3(1.0));
+  Matrix4x4 obj_xform = Matrix4x4::identity() * Matrix4x4::scale(make_float3(10.0));
   Matrix4x4 obj_xform2 = Matrix4x4::identity() * Matrix4x4::translate(make_float3(4.0,0.0,-5.0)) * Matrix4x4::scale(make_float3(1.0));
 
   loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
   loader->load(obj_xform);  
   
-  ObjLoader * loader2 = new ObjLoader( texpath(obj_file2).c_str(), _context, geomgroup2, mat );
-  loader2->load(obj_xform2);  
+  //ObjLoader * loader2 = new ObjLoader( texpath(obj_file2).c_str(), _context, geomgroup2, mat );
+  //loader2->load(obj_xform2);  
 
   // Create GIs for each piece of geometry
   std::vector<GeometryInstance> gis;
@@ -991,12 +1191,13 @@ void Arealight::createGeometry()
   geomgroup->setChild( ct, gis[1] );
   ct = geomgroup->getChildCount();
   //hacky way to add a second object, clean up later
+  /*
   int ct2 = geomgroup2->getChildCount();
   geomgroup->setChildCount( ct + ct2 );
   for(int i=0; i<ct2; i++)
       geomgroup->setChild( ct+i, geomgroup2->getChild(i) );
   //geomgroup->setChild( ct+1, gis[3] );
-
+  */
   
   /*
   GeometryGroup shadowergroup = _context->createGeometryGroup();
@@ -1012,6 +1213,7 @@ void Arealight::createGeometry()
 
   _context["top_object"]->set( geomgroup );
   _context["top_shadower"]->set( geomgroup );
+  
 
 
 
@@ -1029,6 +1231,7 @@ void Arealight::createGeometry()
   _context["top_shadower"]->set( geometrygroup );
   */
 }
+#endif
 
 
 //-----------------------------------------------------------------------------

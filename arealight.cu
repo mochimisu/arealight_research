@@ -268,10 +268,12 @@ RT_PROGRAM void pinhole_camera() {
 
   //scale = 1.0;
 
-  float occ_epsilon = 0.00000001f;
+  float occ_epsilon = 0.00001f;
 
   //if(occ[launch_index].x > 1.0 - occ_epsilon) 
   //  cur_err = 2;
+
+  float dist_scale_threshold = 10000000000000000.0f;
 
   if (blur_occ && (frame > 1)) {// && occ[launch_index].x < 1.0-occ_epsilon ) {
     int numBlurred = 0;
@@ -286,7 +288,8 @@ RT_PROGRAM void pinhole_camera() {
         int j = 0; 
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
-            if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
+            if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0 
+              && abs(occ[launch_index].z-occ[target_index].z) < dist_scale_threshold) {
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
@@ -331,7 +334,8 @@ RT_PROGRAM void pinhole_camera() {
         int i = 0; 
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
-            if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0) {
+            if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0
+              && abs(occ[launch_index].z-occ[target_index].z) < dist_scale_threshold) {
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
