@@ -246,7 +246,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 4;
   //_normal_rpp = 6;i
-  //_brute_rpp = 6;
+  _brute_rpp = 30;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -289,7 +289,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
       make_float3(1.0f, 1.0f, 1.0f)
     }
   };
-  */  /*  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -5.0))
+  */
+  /*
+  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -5.0))
     * Matrix4x4::rotate(-65.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
     * Matrix4x4::rotate(-15.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
     * Matrix4x4::scale(make_float3(10.0f,10.0f,10.0f));
@@ -533,7 +535,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
       lights[0].v2 += d;
-      lights[0].v3 += d;
+      lights[0].v3 += d;
+
       std::cout << "Light now at: " << "\n"
       "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
       "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
@@ -551,7 +554,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
       lights[0].v2 -= d;
-      lights[0].v3 -= d;
+      lights[0].v3 -= d;
+
       std::cout << "Light now at: " << "\n"
       "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
       "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
@@ -569,7 +573,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
       lights[0].v2 += d;
-      lights[0].v3 += d;
+      lights[0].v3 += d;
+
       std::cout << "Light now at: " << "\n"
       "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
       "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
@@ -587,7 +592,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
       lights[0].v2 -= d;
-      lights[0].v3 -= d;
+      lights[0].v3 -= d;
+
       std::cout << "Light now at: " << "\n"
       "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
       "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
@@ -607,7 +613,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
       lights[0].v2 += d;
-      lights[0].v3 += d;
+      lights[0].v3 += d;
+
       std::cout << "Light now at: " << "\n"
       "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
       "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
@@ -625,7 +632,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
       lights[0].v2 -= d;
-      lights[0].v3 -= d;
+      lights[0].v3 -= d;
+
       std::cout << "Light now at: " << "\n"
       "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
       "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
@@ -890,7 +898,8 @@ void Arealight::createGeometry()
   tree_mat["phong_exp"]->setFloat( 100.0f );
   tree_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
   tree_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
-  tree_mat["obj_id"]->setInt(12);
+  tree_mat["obj_id"]->setInt(12);
+
   Material ground_mat = _context->createMaterial();
   ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));

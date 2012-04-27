@@ -256,7 +256,7 @@ RT_PROGRAM void pinhole_camera() {
         max(prd.d2max, zdist[launch_index].y));
     slope[launch_index] = make_float2(max(slope[launch_index].x, prd.s1),
         min(slope[launch_index].y, prd.s2));
-    spp[launch_index] = prd.spp;// min(prd.spp,4000.0);
+    spp[launch_index] = min(prd.spp, (float) brute_rpp * brute_rpp);// min(prd.spp,4000.0);
 
     if (prd.brdf)
       brdf[launch_index] = prd.result;
@@ -294,7 +294,8 @@ RT_PROGRAM void pinhole_camera() {
   //if(occ[launch_index].x > 1.0 - occ_epsilon) 
   //  cur_err = 2;
 
-  float dist_scale_threshold = 10000000000000000.0f;
+  const float dist_scale_threshold = 1.0f;
+  const float angle_threshold = 20.0f * M_PI/180.0f;
 
   if (blur_occ && (frame > 1)) {// && occ[launch_index].x < 1.0-occ_epsilon ) {
     int numBlurred = 0;
@@ -320,7 +321,7 @@ RT_PROGRAM void pinhole_camera() {
                 distancesq = -distancesq;
               if (distancesq < 1) {
                 float3 target_n = n[make_uint2(launch_index.x+i, launch_index.y+j)];
-                if (acos(dot(target_n, cur_n)) < 0.785) {
+                if (acos(dot(target_n, cur_n)) < angle_threshold) {
                   float target_occ = occ[make_uint2(launch_index.x+i, launch_index.y+j)].x;
                   //scale = (distance to light/distance to occluder - 1)
                   float weight = gaussFilter(distancesq,scale);
@@ -366,7 +367,7 @@ RT_PROGRAM void pinhole_camera() {
                 distancesq = -distancesq;
               if (distancesq < 1) {
                 float3 target_n = n[make_uint2(launch_index.x+i, launch_index.y+j)];
-                if (acos(dot(target_n, cur_n)) < 0.785) {
+                if (acos(dot(target_n, cur_n)) < angle_threshold) {
                   float target_occ = occ_blur1d[make_uint2(launch_index.x+i, launch_index.y+j)];
                   //scale = (distance to light/distance to occluder - 1)
                   float weight = gaussFilter(distancesq,scale);
