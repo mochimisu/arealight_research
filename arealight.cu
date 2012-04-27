@@ -72,11 +72,30 @@ __device__ __inline__ void sampleUnitHemisphere( const optix::float2& sample,
   point = x*U + y*V + z*W;
 }
 
+__device__ __inline__ float3 heatMap(float val) {
+  float fraction;
+  if (val < 0.0f)
+    fraction = -1.0f;
+  else if (val > 1.0f)
+    fraction = 1.0f;
+  else
+    fraction = 2.0f * val - 1.0f;
+
+  if (fraction < -0.5f)
+    return make_float3(0.0f, 2*(fraction+1.0f), 1.0f);
+  else if (fraction < 0.0f)
+    return make_float3(0.0f, 1.0f, 1.0f - 2.0f * (fraction + 0.5f));
+  else if (fraction < 0.5f)
+    return make_float3(2.0f * fraction, 1.0f, 0.0f);
+  else
+    return make_float3(1.0f, 1.0f - 2.0f*(fraction - 0.5f), 0.0f);
+}
+
 rtBuffer<float, 1>              gaussian_lookup;
 
 __device__ __inline__ float gaussFilter(float distsq, float scale)
 {
-  float sample = distsq/(scale*scale) * light_sigma * light_sigma;
+  float sample = distsq/(scale*scale * light_sigma * light_sigma);
   if (sample > 0.9999) {
     return 0.0;
   }
@@ -180,6 +199,8 @@ RT_PROGRAM void pinhole_camera() {
     spp_cur[launch_index] = spp_cur[launch_index]+sqrt_samp*sqrt_samp;
     //prd.sqrt_num_samples = 1;
     //spp_cur[launch_index] = spp_cur[launch_index]+1;
+    //prd.sqrt_num_samples = 7;
+    //spp_cur[launch_index] = spp_cur[launch_index]+49;
     prd.brdf = false;
     shoot_ray = true;
     //shoot_ray = false;
@@ -382,26 +403,31 @@ RT_PROGRAM void pinhole_camera() {
       output_buffer[launch_index] = make_color( make_float3(blurred_occ) );
     if (view_mode == 2) 
       //Scale
-      output_buffer[launch_index] = make_color( make_float3(scale) );
+      //output_buffer[launch_index] = make_color( make_float3(scale) );
+      output_buffer[launch_index] = make_color( heatMap(scale) );
     if (view_mode == 3) 
       //Zmin
       if(shoot_ray)
-      output_buffer[launch_index] = make_color( make_float3(prd.d2min) / 100.0);
+      //output_buffer[launch_index] = make_color( make_float3(prd.d2min) / 100.0);
+      output_buffer[launch_index] = make_color( heatMap(prd.d2min / 100.0) );
     if (view_mode == 4) {
       //Zmax
       if (shoot_ray) {
         if (prd.d2max > 0.001)
-          output_buffer[launch_index] = make_color( make_float3(prd.d2max) / 100.0);
+          //output_buffer[launch_index] = make_color( make_float3(prd.d2max) / 100.0);
+          output_buffer[launch_index] = make_color( heatMap( prd.d2max / 100.0) );
         else
-          output_buffer[launch_index] = make_color( make_float3(1) );
+          output_buffer[launch_index] = make_color( heatMap( 1.0f ) );//make_float3(1) );
       }
     }
     if (view_mode == 5) 
       //Current SPP
-      output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
+      //output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
+      output_buffer[launch_index] = make_color( heatMap(spp_cur[launch_index] / 100.0 ) );
     if (view_mode == 6) 
       //Theoretical SPP
-      output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
+      //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
+      output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 100.0 ) );
   } else
     output_buffer[launch_index] = make_color( occ_term * brdf_term);
 
@@ -527,7 +553,7 @@ RT_PROGRAM void closest_hit_radiance3()
   //hardcoded sigma for now (for light intensity)
 
   //Stratify x
-  int num_occ = 0;
+  float num_occ = 0;
   float occ_strength_tot = 0.0;
   float distance_summed = 0.0;
   for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
@@ -543,11 +569,17 @@ RT_PROGRAM void closest_hit_radiance3()
 
       //float strength = 1.0f;
 
+      /*
       float strength = (exp(-(sample.x - 0.5) \
             * (sample.x - 0.5)/(2*light_sigma*light_sigma))) \
             * (1/(light_sigma * sqrt(M_2_PI)) * exp(-(sample.y - 0.5) \
             * (sample.y - 0.5)/(2*light_sigma*light_sigma)));
-            
+        */
+
+      float strength = exp((((sample.x-0.5) * (sample.x-0.5)) \
+        + ((sample.y - 0.5) * (sample.y - 0.5))) \
+        / (2 * light_sigma * light_sigma));
+
       //what does this term do?
       //strength *= 1/(light_sigma * sqrt(M_2_PI));
 
@@ -570,8 +602,9 @@ RT_PROGRAM void closest_hit_radiance3()
       distance_summed += distancetolight;
 
       if(dot(ffnormal, sampleDir) > 0.0f) {
-        ++num_occ;
-        occ_strength_tot += strength;
+        num_occ += strength;
+        //++num_occ;
+        //occ_strength_tot += strength;
 
         // PHONG
         /*
@@ -634,7 +667,7 @@ RT_PROGRAM void closest_hit_radiance3()
     }
   }
   //color += colorAvg/(prd_radiance.sqrt_num_samples*prd_radiance.sqrt_num_samples);
-  color += colorAvg/occ_strength_tot;
+  //color += colorAvg/occ_strength_tot;
   shadow_rng_seeds[launch_index] = seed;
   distance_summed /= prd_radiance.sqrt_num_samples * prd_radiance.sqrt_num_samples;
 

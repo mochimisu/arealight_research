@@ -313,7 +313,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   AreaLight lights[] = {
     { make_float3( 18.5556f, 25.1727f, 10.9409f),
     make_float3( 18.5556f, 25.1727f, 11.9409f),
-    make_float3( 15.7272f, 26.0011, 10.9409),
+    make_float3( 17.6368f, 25.5674f, 10.9431f),
     make_float3(1.0f, 1.0f, 1.0f)
     }
   };
