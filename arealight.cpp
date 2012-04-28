@@ -90,14 +90,17 @@ class Arealight : public SampleScene
     float _env_phi;
 
     uint _blur_occ;
+    uint _blur_wxf;
     uint _err_vis;
     uint _view_mode;
     uint _lin_sep_blur;
 
     uint _normal_rpp;
     uint _brute_rpp;
+    uint _max_rpp_pass;
     uint _show_progressive;
     int2 _pixel_radius;
+    int2 _pixel_radius_wxf;
 
     float _zmin_rpp_scale;
     bool _converged;
@@ -133,7 +136,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // context 
   _context->setRayTypeCount( 2 );
-  _context->setEntryPointCount( 1 );
+  _context->setEntryPointCount( 6 );
   _context->setStackSize( 8000 );
 
   _context["max_depth"]->setInt(100);
@@ -188,7 +191,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["slope"]->set( slope );
 
-  // zmin/zmax (merge into some other buffer later
+  // zmin/zmax 
   Buffer zdist = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["zdist"]->set( zdist );
 
@@ -223,13 +226,22 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer dist_scale = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_scale"]->set( dist_scale );
 
+  Buffer filter = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["use_filter"]->set( filter );
+
+  Buffer wxf_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["wxf_blur1d"]->set( wxf_blur1d );
+
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
+
+  _blur_wxf = 1;
+  _context["blur_wxf"]->setUint(_blur_wxf);
 
   _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
-  _view_mode = 0;
+  _view_mode = 2;
   _context["view_mode"]->setUint(_view_mode);
 
   _lin_sep_blur = 1;
@@ -246,10 +258,12 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 4;
   //_normal_rpp = 6;i
-  _brute_rpp = 30;
+  _brute_rpp = 300;
+  _max_rpp_pass = 49;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
+  _context["max_rpp_pass"]->setUint(_max_rpp_pass);
 
   _zmin_rpp_scale = 1;
   _context["zmin_rpp_scale"]->setFloat(_zmin_rpp_scale);
@@ -257,12 +271,42 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _pixel_radius = make_int2(10,10);
   _context["pixel_radius"]->setInt(_pixel_radius);
 
-  // Ray gen program
+  _pixel_radius_wxf = make_int2(5,5);
+  _context["pixel_radius_wxf"]->setInt(_pixel_radius_wxf);
+
+  // Sampling program
   std::string camera_name;
-  camera_name = "pinhole_camera";
+  camera_name = "pinhole_camera_sample";
 
   Program ray_gen_program = _context->createProgramFromPTXFile( _ptx_path, camera_name );
   _context->setRayGenerationProgram( 0, ray_gen_program );
+
+  // Occlusion Filter programs
+  std::string first_pass_occ_filter_name = "occlusion_filter_first_pass";
+  Program first_occ_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+    first_pass_occ_filter_name );
+  _context->setRayGenerationProgram( 2, first_occ_filter_program );
+  std::string second_pass_occ_filter_name = "occlusion_filter_second_pass";
+  Program second_occ_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+    second_pass_occ_filter_name );
+  _context->setRayGenerationProgram( 3, second_occ_filter_program );
+
+  // Omega x f Filter programs
+  std::string first_pass_wxf_filter_name = "wxf_filter_first_pass";
+  Program first_wxf_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+  first_pass_wxf_filter_name );
+  _context->setRayGenerationProgram( 4, first_wxf_filter_program );
+  std::string second_pass_wxf_filter_name = "wxf_filter_second_pass";
+  Program second_wxf_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+  second_pass_wxf_filter_name );
+  _context->setRayGenerationProgram( 5, second_wxf_filter_program );
+
+  // Display program
+  std::string display_name;
+  display_name = "display_camera";
+
+  Program display_program = _context->createProgramFromPTXFile( _ptx_path, display_name );
+  _context->setRayGenerationProgram( 1, display_program );
 
   // Exception / miss programs
   Program exception_program = _context->createProgramFromPTXFile( _ptx_path, "exception" );
@@ -412,12 +456,28 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   buffer->getSize( buffer_width, buffer_height );
   _context["frame"]->setUint( _frame_number );
 
+  _context->launch( 0, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  /*
+  _context->launch( 4, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 5, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  */
+  _context->launch( 2, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 3, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 1, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+
+
+#if 0
 #ifdef BENCHMARK_NUM
   if(_benchmark_iter < BENCHMARK_NUM)
 #endif
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
       static_cast<unsigned int>(buffer_height) );
-
   if (_frame_number == 0) {
     /*
     int cur_time = timeGetTime();
@@ -487,6 +547,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     std::cout << "Blur time: " << _benchmark_timings[3] << "ms" << std::endl;
     _benchmark_iter++;
   }
+#endif
 #endif
 
 }
@@ -746,7 +807,15 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         std::cout << "Blur: On" << std::endl;
       else
         std::cout << "Blur: Off" << std::endl;
-
+      return true;
+    case 'H':
+    case 'h':
+      _blur_wxf = 1-_blur_wxf;
+      _context["blur_wxf"]->setUint(_blur_wxf);
+      if (_blur_wxf)
+        std::cout << "Blur Omega x f: On" << std::endl;
+      else
+        std::cout << "Blur Omega x f: Off" << std::endl;
       return true;
     case 'E':
     case 'e':
@@ -759,7 +828,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'Z':
     case 'z':
-      _view_mode = (_view_mode+1)%7;
+      _view_mode = (_view_mode+1)%5;
       _context["view_mode"]->setUint(_view_mode);
       switch(_view_mode) {
       case 0:
@@ -772,17 +841,9 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         std::cout << "View mode: Scale" << std::endl;
         break;
       case 3:
-        std::cout << "View mode: Zmin" << std::endl;
-        _camera_changed = true;
-        break;
-      case 4:
-        std::cout << "View mode: Zmax" << std::endl;
-        _camera_changed = true;
-        break;
-      case 5:
         std::cout << "View mode: Current SPP" << std::endl;
         break;
-      case 6:
+      case 4:
         std::cout << "View mode: Theoretical SPP" << std::endl;
         break;
       default:
@@ -1326,7 +1387,7 @@ int main( int argc, char** argv )
     _scene->setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
-    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDProgressive );
+    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);

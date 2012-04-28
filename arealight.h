@@ -53,7 +53,7 @@ struct PerRayData_radiance
   float t_hit;
   float3 world_loc;
 
-  float gauss_scale;
+  float wxf;
   bool hit;
 
   int sqrt_num_samples;
@@ -65,10 +65,13 @@ struct PerRayData_radiance
 
   float d2min;
   float d2max;
-  float spp;
+
+  bool hit_shadow;
 
   float s1;
   float s2;
+
+  bool use_filter;
 };
 
 struct PerRayData_shadow
