@@ -718,7 +718,7 @@ RT_PROGRAM void closest_hit_radiance3()
 
   //assume d is same in all dim
   float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
-  float omega_l_max = 2.0/light_sigma;
+  float omega_l_max = 1.0/light_sigma;
 
   float spp_t_1 = (1+d*(omega_l_max)/s2);
   float spp_t_2 = (1+s1/s2);
