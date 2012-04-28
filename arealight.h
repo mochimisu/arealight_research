@@ -69,6 +69,8 @@ struct PerRayData_radiance
 
   float s1;
   float s2;
+
+  bool use_filter;
 };
 
 struct PerRayData_shadow

@@ -142,6 +142,7 @@ rtBuffer<float, 2>                spp;
 rtBuffer<float, 2>                spp_cur;
 //s1,s2
 rtBuffer<float2, 2>               slope;
+rtBuffer<uint, 2>                 use_filter;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           err_vis, , );
@@ -237,6 +238,7 @@ RT_PROGRAM void pinhole_camera() {
     prd.d2max = zdist[launch_index].y;
     prd.s1 = slope[launch_index].x;
     prd.s2 = slope[launch_index].y;
+    prd.use_filter = false;
 
     rtTrace(top_object, ray, prd);
 
@@ -257,6 +259,7 @@ RT_PROGRAM void pinhole_camera() {
     slope[launch_index] = make_float2(max(slope[launch_index].x, prd.s1),
         min(slope[launch_index].y, prd.s2));
     spp[launch_index] = min(prd.spp, (float) brute_rpp * brute_rpp);// min(prd.spp,4000.0);
+    use_filter[launch_index] = prd.use_filter || use_filter[launch_index];
 
     if (prd.brdf)
       brdf[launch_index] = prd.result;
@@ -297,7 +300,7 @@ RT_PROGRAM void pinhole_camera() {
   const float dist_scale_threshold = 1.0f;
   const float angle_threshold = 20.0f * M_PI/180.0f;
 
-  if (blur_occ && (frame > 1)) {// && occ[launch_index].x < 1.0-occ_epsilon ) {
+  if (blur_occ && (frame > 1) && use_filter[launch_index]) {// && occ[launch_index].x < 1.0-occ_epsilon ) {
     int numBlurred = 0;
 
     float3 cur_n = n[make_uint2(launch_index.x, launch_index.y)];
@@ -311,7 +314,7 @@ RT_PROGRAM void pinhole_camera() {
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
             if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0 
-              && abs(occ[launch_index].z-occ[target_index].z) < dist_scale_threshold) {
+              && abs(occ[launch_index].z-occ[target_index].z) < dist_scale_threshold && use_filter[target_index]) {
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
@@ -342,7 +345,7 @@ RT_PROGRAM void pinhole_camera() {
     first_blurred_occ = occ[launch_index].x;
   }
 
-  if (blur_occ && (frame > 2) ) { // && occ[launch_index].x < 1.0-occ_epsilon) {
+  if (blur_occ && (frame > 2) && use_filter[launch_index]) { // && occ[launch_index].x < 1.0-occ_epsilon) {
     sumWeight = 0.0;
     int numBlurred = 0;
 
@@ -357,7 +360,7 @@ RT_PROGRAM void pinhole_camera() {
           if(launch_index.x + i > 0 && launch_index.y + j > 0) {
             uint2 target_index = make_uint2(launch_index.x+i, launch_index.y+j);
             if(target_index.x < output_buffer.size().x && target_index.y < output_buffer.size().y && occ[target_index].z > 0
-              && abs(occ[launch_index].z-occ[target_index].z) < dist_scale_threshold) {
+              && abs(occ[launch_index].z-occ[target_index].z) < dist_scale_threshold && use_filter[target_index]) {
               //float distance = target_occ.w - prd.t_hit;
               float3 loca = cur_world_loc;
               float3 locb = world_loc[make_uint2(launch_index.x+i, launch_index.y+j)];
@@ -437,7 +440,7 @@ RT_PROGRAM void pinhole_camera() {
     if(cur_err != 0)
       output_buffer[launch_index] = make_color ( make_float3(cur_err==1, cur_err==2, cur_err==3) );
   }
-  
+
 }
 
 
@@ -603,6 +606,7 @@ RT_PROGRAM void closest_hit_radiance3()
       distance_summed += distancetolight;
 
       if(dot(ffnormal, sampleDir) > 0.0f) {
+        prd_radiance.use_filter = true;
         num_occ += strength;
         //++num_occ;
         //occ_strength_tot += strength;

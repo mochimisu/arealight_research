@@ -222,6 +222,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   Buffer dist_scale = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_scale"]->set( dist_scale );
+  
+  Buffer filter = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["use_filter"]->set( filter );
 
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
