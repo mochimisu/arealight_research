@@ -235,13 +235,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
-  _blur_wxf = 1;
+  _blur_wxf = 0;
   _context["blur_wxf"]->setUint(_blur_wxf);
 
   _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
-  _view_mode = 2;
+  _view_mode = 1;
   _context["view_mode"]->setUint(_view_mode);
 
   _lin_sep_blur = 1;
@@ -458,12 +458,10 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  /*
   _context->launch( 4, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  */
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
