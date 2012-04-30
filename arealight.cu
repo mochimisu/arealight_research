@@ -171,7 +171,7 @@ __device__ __inline__ float computeSpp( float t_hit,
     return spp;
 }
 
-RT_PROGRAM void pinhole_camera_sample() {
+RT_PROGRAM void pinhole_camera_initial_sample() {
   size_t2 screen = output_buffer.size();
   
   float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
@@ -210,47 +210,76 @@ RT_PROGRAM void pinhole_camera_sample() {
     use_filter[launch_index] = false;
     spp[launch_index] = 0;
     return;
-  }
+  }
+  float theoretical_spp = 0;
+  if(prd.hit_shadow)
+    theoretical_spp = computeSpp(prd.t_hit, prd.s1, prd.s2, prd.wxf);
 
   world_loc[launch_index] = prd.world_loc;
   brdf[launch_index] = prd.result;
   n[launch_index] = normalize(prd.n);
   dist_scale[launch_index] = prd.dist_scale;
 
-  // Sample second time
-  prd.brdf = false;
-  float theoretical_spp = 0;
-  if(prd.hit_shadow)
-    theoretical_spp = computeSpp(prd.t_hit, prd.s1, prd.s2, prd.wxf);
-
-  // Compute SPP we want 
-  int target_spp = ceil(min(theoretical_spp, (float) brute_rpp * brute_rpp));
-  int current_spp_i = floor(current_spp);
-  if (current_spp_i < target_spp) {
-    int new_samp = min((int) (target_spp - current_spp), (int)max_rpp_pass);
-    int sqrt_samp = ceil(sqrt((float)new_samp));
-    prd.sqrt_num_samples = sqrt_samp;
-    current_spp = current_spp + sqrt_samp * sqrt_samp;
-
-    rtTrace(top_object, ray, prd); //TODO: Don't need to shoot ray back into scene, just resample the shadows...
-  }
-
   zdist[launch_index] = make_float2(prd.d2min, prd.d2max);
-  slope[launch_index] = make_float2(prd.s1, prd.s2);
+  slope[launch_index] =make_float2(prd.s1, prd.s2);
   use_filter[launch_index] = prd.use_filter;
-  
+  if (!prd.use_filter)
+    occ[launch_index].x = 0;
+
   spp_cur[launch_index] = current_spp;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
 
- if (prd.hit_shadow) {
-   occ[launch_index].x = prd.unavg_occ/prd.num_occ;
-   occ[launch_index].y = prd.unavg_occ;
- }
- occ[launch_index].z = prd.wxf;
- occ[launch_index].w = prd.num_occ;
-
-  //output_buffer[launch_index] = make_color( brdf[launch_index] * occ[launch_index].x );
+  if (prd.hit_shadow && prd.num_occ > 0.01) {
+    occ[launch_index].x = prd.unavg_occ/prd.num_occ;
+    occ[launch_index].y = prd.unavg_occ;
+  }
+  occ[launch_index].z = prd.wxf;
+  occ[launch_index].w = prd.num_occ;
 }
+
+RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buffer.size();
+
+  float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
+  float3 ray_origin = eye;
+  float3 ray_direction = normalize(d.x*U + d.y*V + W);
+  PerRayData_radiance prd;
+
+  prd.importance = 1.0f;
+  prd.unavg_occ = 0.0f;
+  prd.depth = 0.0f;
+  prd.hit = false;
+  prd.d2min = zdist[launch_index].x;
+  prd.d2max = zdist[launch_index].y;
+  prd.s1 = slope[launch_index].x;
+  prd.s2 = slope[launch_index].y;
+  prd.use_filter = false;
+  prd.wxf = occ[launch_index].z;
+  optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
+
+  float target_spp = spp[launch_index];
+  target_spp = 100000.0;
+  float cur_spp = spp_cur[launch_index];
+
+  // Compute spp difference
+  if (cur_spp < target_spp ) {
+    int new_samp = min((int) (target_spp - cur_spp), (int) max_rpp_pass);
+    int sqrt_samp = ceil(sqrt((float)new_samp));
+    prd.sqrt_num_samples = sqrt_samp;
+    cur_spp = cur_spp + sqrt_samp * sqrt_samp;
+
+    spp_cur[launch_index] = cur_spp;
+
+    rtTrace(top_object, ray, prd);
+    occ[launch_index].z = prd.wxf;
+    occ[launch_index].w += prd.num_occ;
+    if (prd.hit_shadow && prd.num_occ > 0.01) {
+      occ[launch_index].y += prd.unavg_occ;
+      occ[launch_index].x = occ[launch_index].y/occ[launch_index].w;
+    }
+  }
+
+}
+
 
 RT_PROGRAM void display_camera() {
   float4 cur_occ = occ[launch_index];
@@ -598,6 +627,7 @@ RT_PROGRAM void closest_hit_radiance3()
 
       //what does this term do?
       //strength *= 1/(light_sigma * sqrt(M_2_PI));
+      strength = 1;
 
       //it looks too strong or something
       //strength /= 3.0;

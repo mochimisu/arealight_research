@@ -136,7 +136,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // context 
   _context->setRayTypeCount( 2 );
-  _context->setEntryPointCount( 6 );
+  _context->setEntryPointCount( 7 );
   _context->setStackSize( 8000 );
 
   _context["max_depth"]->setInt(100);
@@ -276,10 +276,16 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // Sampling program
   std::string camera_name;
-  camera_name = "pinhole_camera_sample";
+  camera_name = "pinhole_camera_initial_sample";
 
   Program ray_gen_program = _context->createProgramFromPTXFile( _ptx_path, camera_name );
   _context->setRayGenerationProgram( 0, ray_gen_program );
+
+  // continual Sampling
+  std::string continue_sampling = "pinhole_camera_continue_sample";
+
+  Program continue_sampling_program = _context->createProgramFromPTXFile( _ptx_path, continue_sampling );
+  _context->setRayGenerationProgram( 6, continue_sampling_program );
 
   // Occlusion Filter programs
   std::string first_pass_occ_filter_name = "occlusion_filter_first_pass";
@@ -458,10 +464,21 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  /*
   _context->launch( 4, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
+    static_cast<unsigned int>(buffer_height) ); */
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
