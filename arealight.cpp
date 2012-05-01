@@ -253,8 +253,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
-  _brute_rpp = 300;
-  _max_rpp_pass = 49;
+  _brute_rpp = 20;
+  _max_rpp_pass = 7;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -457,10 +457,16 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   buffer->getSize( buffer_width, buffer_height );
   _context["frame"]->setUint( _frame_number );
 
+  int num_resample = ceil((float)_brute_rpp * _brute_rpp / (_max_rpp_pass * _max_rpp_pass));
+  //std::cout << "Number of passes to resample: " << num_resample << std::endl;
+
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  //_context->launch( 6, static_cast<unsigned int>(buffer_width),
-  //  static_cast<unsigned int>(buffer_height) );
+#if 0
+  for(int i = 0; i < num_resample+1; i++)
+#endif
+  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
   _context->launch( 4, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
@@ -829,7 +835,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'Z':
     case 'z':
-      _view_mode = (_view_mode+1)%7;
+      _view_mode = (_view_mode+1)%8;
       _context["view_mode"]->setUint(_view_mode);
       switch(_view_mode) {
       case 0:
@@ -852,6 +858,9 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         break;
       case 6:
         std::cout << "Use filter (unoccluded)" << std::endl;
+        break;
+      case 7:
+        std::cout << "View unconverged pixels" << std::endl;
         break;
       default:
         std::cout << "View mode: Unknown" << std::endl;

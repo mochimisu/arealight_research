@@ -245,7 +245,7 @@ RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buf
   prd.first_pass = false;
   prd.unavg_vis = vis[launch_index].y;
   prd.vis_weight_tot = vis[launch_index].z;
-  prd.hit_shadow = use_filter_occ[launch_index];
+  prd.hit_shadow = false;
   prd.use_filter_n = use_filter_n[launch_index];
   prd.s1 = slope[launch_index].x;
   prd.s2 = slope[launch_index].y;
@@ -253,12 +253,11 @@ RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buf
   optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
 
   float target_spp = spp[launch_index];
-  target_spp = 100000.0;
   float cur_spp = spp_cur[launch_index];
 
   // Compute spp difference
   if (cur_spp < target_spp ) {
-    int new_samp = min((int) (target_spp - cur_spp), (int) max_rpp_pass);
+    int new_samp = min((int) (target_spp - cur_spp), (int) max_rpp_pass*max_rpp_pass);
     int sqrt_samp = ceil(sqrt((float)new_samp));
     prd.sqrt_num_samples = sqrt_samp;
     cur_spp = cur_spp + sqrt_samp * sqrt_samp;
@@ -310,10 +309,13 @@ RT_PROGRAM void display_camera() {
       output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 100.0 ) );
     if (view_mode == 5)
       //Use filter (normals)
-      output_buffer[launch_index] = make_color ( make_float3(use_filter_n[launch_index])  );
+      output_buffer[launch_index] = make_color( make_float3(use_filter_n[launch_index])  );
     if (view_mode == 6)
       //Use filter (unocc)
-      output_buffer[launch_index] = make_color ( make_float3(use_filter_occ[launch_index])  );
+      output_buffer[launch_index] = make_color( make_float3(use_filter_occ[launch_index])  );
+    if (view_mode == 7)
+      //View areas that are not yet converged to theoretical spp
+      output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index] < spp[launch_index],0,0) );
   } else
     output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
