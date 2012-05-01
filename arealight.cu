@@ -182,7 +182,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   prd.sqrt_num_samples = normal_rpp;
 
   //Initialize the stuff we use in later passes
-  occ[launch_index] = make_float4(1.0, 1.0, 100000.0, 0.0);
+  occ[launch_index] = make_float4(1.0, 0.0, 100000.0, 0.0);
   prd.brdf = true;
   zdist[launch_index] = make_float2(10000.0, 0.0);
   slope[launch_index] = make_float2(0.0, 10000.0);
@@ -601,6 +601,7 @@ RT_PROGRAM void closest_hit_radiance3()
   float occ_strength_tot = 0.0;
   float distance_summed = 0.0;
   bool hit_shadow = false;
+  float3 light_center = (0.5 * lx + 0.5 * ly) +lo;
   for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
     seed.x = rot_seed(seed.x, i);
 
@@ -612,35 +613,21 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
-      //float strength = 1.0f;
-
-      /*
-      float strength = (exp(-(sample.x - 0.5) \
-            * (sample.x - 0.5)/(2*light_sigma*light_sigma))) \
-            * (1/(light_sigma * sqrt(M_2_PI)) * exp(-(sample.y - 0.5) \
-            * (sample.y - 0.5)/(2*light_sigma*light_sigma)));
-        */
-
-      float strength = exp((((sample.x-0.5) * (sample.x-0.5)) \
-        + ((sample.y - 0.5) * (sample.y - 0.5))) \
+      
+      float strength = exp(-0.5*((sample.x-0.5)*(sample.x-0.5) \
+        + (sample.y-0.5) * (sample.y-0.5)) \
         / (2 * light_sigma * light_sigma));
-
-      //what does this term do?
-      //strength *= 1/(light_sigma * sqrt(M_2_PI));
+      
       strength = 1;
 
-      //it looks too strong or something
-      //strength /= 3.0;
+      float3 target = (sample.x * lx + sample.y * ly) + lo;
 
       /*
-      //From point, choose a random direction to sample in
-      float3 U, V, W;
-      float3 sampleDir;
-      createONB( ffnormal, U, V, W); //(is ffnormal the correct one to be using here?)
-      sampleUnitHemisphere( sample, U, V, W, sampleDir );
-       */
+      float strength = exp( -0.5 * ((sample.x - target.x) * (sample.x - target.x) \
+        + (sample.y - target.y) * (sample.y - target.y)) \
+        / ( 2 * light_sigma * light_sigma));
+      */
 
-      float3 target = (sample.x * lx + sample.y * ly) + lo;
       float3 sampleDir = normalize(target - hit_point);
 
       float3 distancevectoocc = target-hit_point;
@@ -650,21 +637,7 @@ RT_PROGRAM void closest_hit_radiance3()
       if(dot(ffnormal, sampleDir) > 0.0f) {
         prd_radiance.use_filter = true;
         num_occ += strength;
-        //++num_occ;
-        //occ_strength_tot += strength;
 
-        // PHONG
-        /*
-        float3 L = normalize(target - hit_point);
-        float nDl = dot( ffnormal, L);
-        float3 H = normalize(sampleDir - ray.direction);
-        float nDh = dot( ffnormal, H );
-        //temporary - white light
-        float3 Lc = make_float3(1,1,1);
-        colorAvg += Kd * nDl * Lc * strength;
-        if (nDh > 0)
-          colorAvg += Ks * pow(nDh, phong_exp);
-          */
 
         // SHADOW
         //cast ray and check for shadow
@@ -692,32 +665,11 @@ RT_PROGRAM void closest_hit_radiance3()
           float wxfsq = wxf*wxf;
           prd_radiance.wxf = max(wxf,prd_radiance.wxf);
         }
-        /*
-        float d2 = distancetolight - shadow_prd.distance;
-        if(d2 > scene_epsilon) {
-
-          //prd_radiance.d2min = d2;
-          prd_radiance.d2min = min(prd_radiance.d2min, d2);
-          //prd_radiance.d2max = d2;
-          prd_radiance.d2max = max(prd_radiance.d2max, d2);
-          float scale = distancetolight/(d2) - 1;
-          prd_radiance.gauss_scale = min(scale, prd_radiance.gauss_scale);
-        }*/
-        //prd_radiance.shadow_intersection = min(dlzmin, prd_radiance.shadow_intersection);
-        //prd_radiance.shadow_intersection = min(1/dlzmin, prd_radiance.shadow_intersection);
-        //prd_radiance.shadow_intersection = min(dzmindl,prd_radiance.shadow_intersection);
-        //prd_radiance.shadow_intersection = min(shadow_prd.distance,prd_radiance.shadow_intersection);
-
       }
-      /*
-         else {
-         color += make_float3(10000,0,0);
-         }
-       */
+
     }
   }
-  //color += colorAvg/(prd_radiance.sqrt_num_samples*prd_radiance.sqrt_num_samples);
-  //color += colorAvg/occ_strength_tot;
+
   shadow_rng_seeds[launch_index] = seed;
   distance_summed /= prd_radiance.sqrt_num_samples * prd_radiance.sqrt_num_samples;
 
@@ -741,38 +693,6 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.s1 = s1;
   prd_radiance.s2 = s2;
 
-  //float spp = 4.0*(1.0+s1/s2)*(1.0+s1/s2);
-
-  /*
-  float ap = 1.0/360.0 * 1.0/(t_hit*tan(30.0*M_PI/180.0)); 
-  ap = ap*ap;
-
-  float al = 36.0 * light_sigma * light_sigma;
-
-  float omega_max_pix = 0.5 / (sqrt(ap));
-
-  float omega_f_y = 2.0/light_sigma;
-  float omega_f_x = 2.0/(light_sigma*s2);
-
-  float omega_star_x = omega_f_x + omega_max_pix;
-  float omega_star_y = omega_f_y + s1*omega_f_x;
-
-  float spp = (omega_star_x * omega_star_y) * (omega_star_x * omega_star_y) *
-    ap * al;
-  */
-
-  //assume d is same in all dim
-  /*
-  float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
-  float omega_l_max = 1.0/light_sigma;
-
-  float spp_t_1 = (1+d*(omega_l_max)/s2);
-  float spp_t_2 = (1+s1/s2);
-  float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
-  
-  
-  prd_radiance.spp = spp;
-  */
 
   if(!hit_shadow) {
     //prd_radiance.spp = 0;

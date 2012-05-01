@@ -253,7 +253,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
   
-  _sigma = 0.5;
+  _sigma = 0.25;
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
@@ -463,14 +463,6 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context["frame"]->setUint( _frame_number );
 
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  _context->launch( 6, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  _context->launch( 6, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  _context->launch( 6, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
@@ -933,6 +925,159 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
     target->setChild(ct_target + i, source->getChild(i));
 }
 
+#if 0
+//grids2
+void Arealight::createGeometry()
+{
+  //Make some temp geomgroups
+  GeometryGroup floor_geom_group = _context->createGeometryGroup();
+  GeometryGroup grid1_geom_group = _context->createGeometryGroup();
+  GeometryGroup grid3_geom_group = _context->createGeometryGroup();
+  GeometryGroup grid2_geom_group = _context->createGeometryGroup();
+
+  //Set some materials
+  Material floor_mat = _context->createMaterial();
+  floor_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  floor_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  floor_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  floor_mat["Kd"]->setFloat( 0.87402f, 0.87402f, 0.87402f );
+  floor_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  floor_mat["phong_exp"]->setFloat( 100.0f );
+  floor_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  floor_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  floor_mat["obj_id"]->setInt(10);
+
+  Material grid1_mat = _context->createMaterial();
+  grid1_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  grid1_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  grid1_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid1_mat["Kd"]->setFloat( 0.72f, 0.100741f, 0.09848f );
+  grid1_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid1_mat["phong_exp"]->setFloat( 100.0f );
+  grid1_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid1_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid1_mat["obj_id"]->setInt(11);
+
+  Material grid2_mat = _context->createMaterial();
+  grid2_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  grid2_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  grid2_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid2_mat["Kd"]->setFloat( 0.0885402f, 0.77f, 0.08316f );
+  grid2_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid2_mat["phong_exp"]->setFloat( 100.0f );
+  grid2_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid2_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid2_mat["obj_id"]->setInt(12);
+
+  Material grid3_mat = _context->createMaterial();
+  grid3_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  grid3_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  grid3_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid2_mat["Kd"]->setFloat( 0.123915f, 0.192999f, 0.751f );
+  grid3_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid3_mat["phong_exp"]->setFloat( 100.0f );
+  grid3_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid3_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  grid3_mat["obj_id"]->setInt(13);
+
+  //Transformations
+  Matrix4x4 floor_xform = Matrix4x4::identity();
+  float *floor_xform_m = floor_xform.getData();
+  floor_xform_m[0] = 4.0;
+  floor_xform_m[10] = 4.0;
+  floor_xform_m[12] = 0.0778942;
+  floor_xform_m[14] = 0.17478;
+  std::cout << floor_xform[12] << std::endl;
+
+
+  Matrix4x4 grid1_xform = Matrix4x4::identity();
+  float *grid1_xform_m = grid1_xform.getData();
+  grid1_xform_m[0] = 0.75840;
+  grid1_xform_m[1] = 0.6232783;
+  grid1_xform_m[2] = -0.156223;
+  grid1_xform_m[3] = 0.0;
+  grid1_xform_m[4] = -0.465828;
+  grid1_xform_m[5] = 0.693876;
+  grid1_xform_m[6] = 0.549127;
+  grid1_xform_m[7] = 0.0;
+  grid1_xform_m[8] = 0.455878;
+  grid1_xform_m[9] = -0.343688;
+  grid1_xform_m[10] = 0.821008;
+  grid1_xform_m[11] = 0.0;
+  grid1_xform_m[12] = 2.18526;
+  grid1_xform_m[13] = 1.0795;
+  grid1_xform_m[14] = 1.23179;
+  grid1_xform_m[15] = 1.0;
+
+  Matrix4x4 grid2_xform = Matrix4x4::identity();
+  float *grid2_xform_m = grid2_xform.getData();
+  grid2_xform_m[0] = 0.893628;
+  grid2_xform_m[1] = 0.203204;
+  grid2_xform_m[2] = -0.40017;
+  grid2_xform_m[3] = 0.0;
+  grid2_xform_m[4] = 0.105897;
+  grid2_xform_m[5] = 0.770988;
+  grid2_xform_m[6] = 0.627984;
+  grid2_xform_m[7] = 0.0;
+  grid2_xform_m[8] = 0.436135;
+  grid2_xform_m[9] = -0.603561;
+  grid2_xform_m[10] = 0.667458;
+  grid2_xform_m[11] = 0.0;
+  grid2_xform_m[12] = 0.142805;
+  grid2_xform_m[13] = 1.0837;
+  grid2_xform_m[14] = 0.288514;
+  grid2_xform_m[15] = 1.0;
+  
+  Matrix4x4 grid3_xform = Matrix4x4::identity();
+  float *grid3_xform_m = grid3_xform.getData();
+  grid3_xform_m[0] = 0.109836;
+  grid3_xform_m[1] = 0.392525;
+  grid3_xform_m[2] = -0.913159;
+  grid3_xform_m[3] = 0.0;
+  grid3_xform_m[4] = 0.652392;
+  grid3_xform_m[5] = 0.664651;
+  grid3_xform_m[6] = 0.364174;
+  grid3_xform_m[7] = 0.0;
+  grid3_xform_m[8] = 0.74988;
+  grid3_xform_m[9] = -0.635738;
+  grid3_xform_m[10] = -0.183078;
+  grid3_xform_m[11] = 0.0;
+  grid3_xform_m[12] = -2.96444;
+  grid3_xform_m[13] = 1.86879;
+  grid3_xform_m[14] = 1.00696;
+  grid3_xform_m[15] = 1.0;
+  
+
+
+  //Load the OBJ's
+  ObjLoader * floor_loader = new ObjLoader( texpath("grids2/floor.obj").c_str(), _context, floor_geom_group, floor_mat );
+  floor_loader->load(floor_xform);
+  ObjLoader * grid1_loader = new ObjLoader( texpath("grids2/grid1.obj").c_str(), _context, grid1_geom_group, grid1_mat );
+  grid1_loader->load(grid1_xform);
+  ObjLoader * grid2_loader = new ObjLoader( texpath("grids2-2/grid2.obj").c_str(), _context, grid2_geom_group, grid2_mat );
+  grid2_loader->load(grid2_xform);
+  ObjLoader * grid3_loader = new ObjLoader( texpath("grids2/grid3.obj").c_str(), _context, grid3_geom_group, grid3_mat );
+  grid3_loader->load(grid3_xform);
+
+
+  //Make one big geom group
+  GeometryGroup geom_group = _context->createGeometryGroup();
+  //appendGeomGroup(geom_group, floor_geom_group);
+  std::cout << "asdf" << std::endl;
+  std::cout << floor_geom_group->getChildCount() << std::endl;
+  std::cout << geom_group->getChildCount() << std::endl;
+  //appendGeomGroup(geom_group, grid1_geom_group);
+  appendGeomGroup(geom_group, grid2_geom_group);
+  //appendGeomGroup(geom_group, grid3_geom_group);
+  //geom_group->setChild(ct, global);
+  //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
+  geom_group->setAcceleration( floor_geom_group->getAcceleration() );
+
+  //Set the geom group
+  _context["top_object"]->set( geom_group );
+  _context["top_shadower"]->set( geom_group );
+}
+#else
 void Arealight::createGeometry()
 {
   //Make some temp geomgroups
@@ -1058,6 +1203,7 @@ void Arealight::createGeometry()
   _context["top_object"]->set( geom_group );
   _context["top_shadower"]->set( geom_group );
 }
+#endif
 
 #if 0
 void Arealight::createGeometry()
