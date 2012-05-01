@@ -459,8 +459,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  _context->launch( 6, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
+  //_context->launch( 6, static_cast<unsigned int>(buffer_width),
+  //  static_cast<unsigned int>(buffer_height) );
   _context->launch( 4, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
@@ -829,7 +829,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'Z':
     case 'z':
-      _view_mode = (_view_mode+1)%5;
+      _view_mode = (_view_mode+1)%7;
       _context["view_mode"]->setUint(_view_mode);
       switch(_view_mode) {
       case 0:
@@ -846,6 +846,12 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         break;
       case 4:
         std::cout << "View mode: Theoretical SPP" << std::endl;
+        break;
+      case 5:
+        std::cout << "Use filter (normals)" << std::endl;
+        break;
+      case 6:
+        std::cout << "Use filter (unoccluded)" << std::endl;
         break;
       default:
         std::cout << "View mode: Unknown" << std::endl;

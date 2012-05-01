@@ -192,6 +192,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   //spp_cur[launch_index] = current_spp;
   use_filter_n[launch_index] = false;
   use_filter_occ[launch_index] = false;
+  brdf[launch_index] = make_float3(0,0,0);
 
   optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
   prd.first_pass = true;
@@ -208,8 +209,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 
   if (!prd.hit) {
     vis[launch_index] = make_float3(1,1,0);
-    spp[launch_index] = 0;
-    return;
+    spp[launch_index] = 0;    brdf[launch_index].x = -2;    return;
   }  float wxf = computeWxf(prd.s2);
   float theoretical_spp = 0;
   if(prd.hit_shadow)
@@ -281,7 +281,7 @@ RT_PROGRAM void display_camera() {
   float blurred_vis = cur_vis.x;
   float wxf = computeWxf(slope[launch_index].y);
 
-  if (wxf < 0.0f) {
+  if (brdf[launch_index].x < -1.0f) {
     output_buffer[launch_index] = make_color( bg_color );
     return;
   }
@@ -308,6 +308,12 @@ RT_PROGRAM void display_camera() {
       //Theoretical SPP
       //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
       output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 100.0 ) );
+    if (view_mode == 5)
+      //Use filter (normals)
+      output_buffer[launch_index] = make_color ( make_float3(use_filter_n[launch_index])  );
+    if (view_mode == 6)
+      //Use filter (unocc)
+      output_buffer[launch_index] = make_color ( make_float3(use_filter_occ[launch_index])  );
   } else
     output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
@@ -350,7 +356,7 @@ RT_PROGRAM void occlusion_filter_first_pass() {
   float3 cur_vis = vis[launch_index];
   float wxf = computeWxf(slope[launch_index].y);
   float blurred_vis = cur_vis.x;  float2 cur_slope = slope[launch_index];
-  if (wxf < 0.0) {
+  if (!use_filter_n[launch_index] || !use_filter_occ[launch_index]) {
     vis_blur1d[launch_index] = blurred_vis;
     return;
   }
@@ -499,9 +505,9 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.dist_to_light = dist_to_light;
   if(prd_radiance.first_pass) {
     float3 L = normalize(to_light);
-    float nDl = dot( ffnormal, L );
+    float nDl = max(dot( ffnormal, L ),0.0f);
     float3 H = normalize(L - ray.direction);
-    float nDh = dot( ffnormal, H );
+    float nDh = max(dot( ffnormal, H ),0.0f);
     //temporary - white light
     float3 Lc = make_float3(1,1,1);
     color += Kd * nDl * Lc;// * strength;
@@ -523,19 +529,20 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
       
+      /*
       float strength = exp(-0.5*((sample.x-0.5)*(sample.x-0.5) \
         + (sample.y-0.5) * (sample.y-0.5)) \
         / (2 * light_sigma * light_sigma));
-      
-      strength = 1;
+      */
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
 
-      /*
-      float strength = exp( -0.5 * ((sample.x - target.x) * (sample.x - target.x) \
-        + (sample.y - target.y) * (sample.y - target.y)) \
+      
+      float strength = exp( -0.5 * ((light_center.x - target.x) * (light_center.x - target.x) \
+        + (light_center.y - target.y) * (light_center.y - target.y) \
+        + (light_center.z - target.z) * (light_center.z - target.z)) \
         / ( 2 * light_sigma * light_sigma));
-      */
+      
 
       float3 sampleDir = normalize(target - hit_point);
 
