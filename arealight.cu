@@ -222,7 +222,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   slope[launch_index] =make_float2(prd.s1, prd.s2);
   use_filter_n[launch_index] = prd.use_filter_n;
   use_filter_occ[launch_index] = prd.hit_shadow;
-  if (!prd.use_filter_n || !prd.hit_shadow)
+  //if (!prd.use_filter_n || !prd.hit_shadow)
     vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
