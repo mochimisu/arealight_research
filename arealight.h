@@ -47,31 +47,27 @@ __device__ __inline__ uchar4 make_color(const float3& c)
 
 struct PerRayData_radiance
 {
-  float3 result;
-  float  importance;
-  int depth;
-  float t_hit;
-  float3 world_loc;
-
-  float wxf;
-  bool hit;
-
+  // Things to specify when creating the ray
+  bool first_pass;
   int sqrt_num_samples;
-  bool brdf;
-  unsigned int unavg_occ;
-  float num_occ;
-  float3 n;
-  float dist_scale;
 
-  float d2min;
-  float d2max;
-
+  // Things to specify and will get updated
+  float unavg_vis;
+  float vis_weight_tot;
+  
+  // Things that will be generated automatically
   bool hit_shadow;
-
+  bool use_filter_n;
   float s1;
   float s2;
+  float dist_to_light;
 
-  bool use_filter;
+  // Things that should only be generated on first pass
+  bool hit;
+  float t_hit;
+  float3 world_loc;
+  float3 n;
+  float3 brdf;
 };
 
 struct PerRayData_shadow

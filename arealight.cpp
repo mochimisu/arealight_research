@@ -75,7 +75,7 @@ class Arealight : public SampleScene
     unsigned int  _keep_trying;
 
     Buffer       _brdf;
-    Buffer       _occ;
+    Buffer       _vis;
     GeometryGroup geomgroup;
     GeometryGroup geomgroup2;
 
@@ -160,17 +160,17 @@ void Arealight::initScene( InitialCameraData& camera_data )
     seeds[i] = random2u();
   shadow_rng_seeds->unmap();
 
-  // Accumulation buffer
+  // BRDF buffer
   _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["brdf"]->set( _brdf );
 
-  // Occlusion accumulation buffer
-  _occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4, _width, _height );
-  _context["occ"]->set( _occ );
+  // Occlusion buffer
+  _vis = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
+  _context["vis"]->set( _vis );
 
   // Blurred (on one dimension) cclusion accumulation buffer
   Buffer _occ_blur = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  _context["occ_blur1d"]->set( _occ_blur );
+  _context["vis_blur1d"]->set( _occ_blur );
 
   // samples per pixel buffer
 #ifdef SPP_STATS
@@ -190,10 +190,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["slope"]->set( slope );
-
-  // zmin/zmax 
-  Buffer zdist = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
-  _context["zdist"]->set( zdist );
 
   // gauss values
   Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
@@ -223,14 +219,17 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer n = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["n"]->set( n );
 
-  Buffer dist_scale = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  _context["dist_scale"]->set( dist_scale );
+  Buffer filter_n = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["use_filter_n"]->set( filter_n );
 
-  Buffer filter = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  _context["use_filter"]->set( filter );
+  Buffer filter_occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["use_filter_occ"]->set( filter_occ );
 
   Buffer wxf_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["wxf_blur1d"]->set( wxf_blur1d );
+
+  Buffer dist_to_light = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["dist_to_light"]->set( dist_to_light );
 
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
@@ -244,9 +243,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _view_mode = 1;
   _context["view_mode"]->setUint(_view_mode);
 
-  _lin_sep_blur = 1;
-  _context["lin_sep_blur"]->setUint(_lin_sep_blur);
-
   _show_brdf = 1;
   _context["show_brdf"]->setUint(_show_brdf);
 
@@ -257,7 +253,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
-  //_normal_rpp = 6;i
   _brute_rpp = 300;
   _max_rpp_pass = 49;
 
@@ -466,11 +461,10 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  /*
   _context->launch( 4, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) ); */
+    static_cast<unsigned int>(buffer_height) );
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),

@@ -131,19 +131,19 @@ rtBuffer<uchar4, 2>              output_buffer;
 rtDeclareVariable(float3, bg_color, , );
 
 rtBuffer<float3, 2>               brdf;
-//divided occlusion, undivided occlusion, zmin, num_samples
-rtBuffer<float4, 2>               occ;
-rtBuffer<float, 2>                occ_blur1d;
+//divided occlusion, undivided occlusion, wxf, num_samples
+rtBuffer<float3, 2>               vis;
+rtBuffer<float, 2>                vis_blur1d;
 rtBuffer<float3, 2>               world_loc;
 rtBuffer<float3, 2>               n;
-rtBuffer<float, 2>                dist_scale;
-rtBuffer<float2, 2>               zdist;
-rtBuffer<float, 2>               wxf_blur1d;
+rtBuffer<float, 2>                wxf_blur1d;
 rtBuffer<float, 2>                spp;
 rtBuffer<float, 2>                spp_cur;
+
 //s1,s2
 rtBuffer<float2, 2>               slope;
-rtBuffer<uint, 2>                 use_filter;
+rtBuffer<uint, 2>                 use_filter_n;
+rtBuffer<uint, 2>                 use_filter_occ;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           blur_wxf, , );
@@ -171,7 +171,12 @@ __device__ __inline__ float computeSpp( float t_hit,
     return spp;
 }
 
+__device__ __inline__ float computeWxf( float s2 ) {
+  return 1.0/(light_sigma * s2);
+}
+
 RT_PROGRAM void pinhole_camera_initial_sample() {
+  // Find direction to shoot ray in
   size_t2 screen = output_buffer.size();
   
   float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
@@ -179,62 +184,55 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
   PerRayData_radiance prd;
 
-  prd.sqrt_num_samples = normal_rpp;
-
-  //Initialize the stuff we use in later passes
-  occ[launch_index] = make_float4(1.0, 0.0, 100000.0, 0.0);
-  prd.brdf = true;
-  zdist[launch_index] = make_float2(10000.0, 0.0);
+  // Initialize the stuff we use in later passes
+  vis[launch_index] = make_float3(1.0, 0.0, 0.0);
   slope[launch_index] = make_float2(0.0, 10000.0);
   float current_spp = normal_rpp * normal_rpp;
   //spp[launch_index] = current_spp;
   //spp_cur[launch_index] = current_spp;
-  use_filter[launch_index] = false;
+  use_filter_n[launch_index] = false;
+  use_filter_occ[launch_index] = false;
 
   optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
-  prd.importance = 1.0f;
-  prd.unavg_occ = 0.0f;
-  prd.depth = 0.0f;
-  prd.hit = false;
-  prd.d2min = zdist[launch_index].x;
-  prd.d2max = zdist[launch_index].y;
+  prd.first_pass = true;
+  prd.sqrt_num_samples = normal_rpp;
+  prd.unavg_vis = 0.0f;
+  prd.vis_weight_tot = 0.0f;
+  prd.hit_shadow = false;
+  prd.use_filter_n = false;
   prd.s1 = slope[launch_index].x;
   prd.s2 = slope[launch_index].y;
-  prd.use_filter = false;
-  prd.wxf = 0.0f;
+  prd.hit = false;
 
   rtTrace(top_object, ray, prd);
 
   if (!prd.hit) {
-    occ[launch_index] = make_float4(1,1,-1,0);
-    use_filter[launch_index] = false;
+    vis[launch_index] = make_float3(1,1,0);
     spp[launch_index] = 0;
     return;
-  }
+  }  float wxf = computeWxf(prd.s2);
   float theoretical_spp = 0;
   if(prd.hit_shadow)
-    theoretical_spp = computeSpp(prd.t_hit, prd.s1, prd.s2, prd.wxf);
+    theoretical_spp = computeSpp(prd.t_hit, prd.s1, prd.s2, wxf);
 
   world_loc[launch_index] = prd.world_loc;
-  brdf[launch_index] = prd.result;
+  brdf[launch_index] = prd.brdf;
   n[launch_index] = normalize(prd.n);
-  dist_scale[launch_index] = prd.dist_scale;
 
-  zdist[launch_index] = make_float2(prd.d2min, prd.d2max);
   slope[launch_index] =make_float2(prd.s1, prd.s2);
-  use_filter[launch_index] = prd.use_filter;
-  if (!prd.use_filter)
-    occ[launch_index].x = 0;
+  use_filter_n[launch_index] = prd.use_filter_n;
+  use_filter_occ[launch_index] = prd.hit_shadow;
+  if (!prd.use_filter_n || !prd.hit_shadow)
+    vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
 
-  if (prd.hit_shadow && prd.num_occ > 0.01) {
-    occ[launch_index].x = prd.unavg_occ/prd.num_occ;
-    occ[launch_index].y = prd.unavg_occ;
+  if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
+    vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
+    vis[launch_index].y = prd.unavg_vis;
   }
-  occ[launch_index].z = prd.wxf;
-  occ[launch_index].w = prd.num_occ;
+  vis[launch_index].z = prd.vis_weight_tot;
 }
 
 RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buffer.size();
@@ -244,16 +242,14 @@ RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buf
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
   PerRayData_radiance prd;
 
-  prd.importance = 1.0f;
-  prd.unavg_occ = 0.0f;
-  prd.depth = 0.0f;
-  prd.hit = false;
-  prd.d2min = zdist[launch_index].x;
-  prd.d2max = zdist[launch_index].y;
+  prd.first_pass = false;
+  prd.unavg_vis = vis[launch_index].y;
+  prd.vis_weight_tot = vis[launch_index].z;
+  prd.hit_shadow = use_filter_occ[launch_index];
+  prd.use_filter_n = use_filter_n[launch_index];
   prd.s1 = slope[launch_index].x;
   prd.s2 = slope[launch_index].y;
-  prd.use_filter = false;
-  prd.wxf = occ[launch_index].z;
+
   optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
 
   float target_spp = spp[launch_index];
@@ -270,11 +266,10 @@ RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buf
     spp_cur[launch_index] = cur_spp;
 
     rtTrace(top_object, ray, prd);
-    occ[launch_index].z = prd.wxf;
-    occ[launch_index].w += prd.num_occ;
-    if (prd.hit_shadow && prd.num_occ > 0.01) {
-      occ[launch_index].y += prd.unavg_occ;
-      occ[launch_index].x = occ[launch_index].y/occ[launch_index].w;
+    vis[launch_index].z += prd.vis_weight_tot;
+    if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
+      vis[launch_index].y += prd.unavg_vis;
+      vis[launch_index].x = vis[launch_index].y/vis[launch_index].z;
     }
   }
 
@@ -282,28 +277,29 @@ RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buf
 
 
 RT_PROGRAM void display_camera() {
-  float4 cur_occ = occ[launch_index];
-  float blurred_occ = cur_occ.x;
+  float3 cur_vis = vis[launch_index];
+  float blurred_vis = cur_vis.x;
+  float wxf = computeWxf(slope[launch_index].y);
 
-  if (cur_occ.z < 0.0f) {
+  if (wxf < 0.0f) {
     output_buffer[launch_index] = make_color( bg_color );
     return;
   }
 
   float3 brdf_term = make_float3(1);
-  float occ_term = 1;
+  float vis_term = 1;
   if (show_brdf)
     brdf_term = brdf[launch_index];
   if (show_occ)
-    occ_term = blurred_occ;
+    vis_term = blurred_vis;
   if (view_mode) {
     if (view_mode == 1)
       //Occlusion only
-      output_buffer[launch_index] = make_color( make_float3(blurred_occ) );
+      output_buffer[launch_index] = make_color( make_float3(blurred_vis) );
     if (view_mode == 2) 
       //Scale
       //output_buffer[launch_index] = make_color( make_float3(scale) );
-      output_buffer[launch_index] = make_color( heatMap(1/(cur_occ.z/light_sigma)*5.0) );
+      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma)*5.0) );
     if (view_mode == 3) 
       //Current SPP
       //output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
@@ -313,12 +309,12 @@ RT_PROGRAM void display_camera() {
       //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
       output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 100.0 ) );
   } else
-    output_buffer[launch_index] = make_color( occ_term * brdf_term);
+    output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
 
 }
 
-__device__ __inline__ void occlusionFilter( float& blurred_occ_sum,
+__device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
   float& sum_weight, const optix::float3& cur_world_loc, float3 cur_n,
   float wxf, int i, int j, const optix::size_t2& buf_size, 
   unsigned int pass ) {
@@ -327,10 +323,10 @@ __device__ __inline__ void occlusionFilter( float& blurred_occ_sum,
     const float angle_threshold = 20.0f * M_PI/180.0f;
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
       uint2 target_index = make_uint2(i,j);
-      float4 target_occ = occ[target_index];
-      float target_wxf = target_occ.z;
+      float3 target_vis = vis[target_index];
+      float target_wxf = computeWxf(slope[target_index].y);
       if (target_wxf > 0 && abs(wxf - target_wxf) < dist_scale_threshold &&
-         use_filter[target_index] ) {
+         use_filter_n[target_index]) {
           float3 target_loc = world_loc[target_index];
           float3 diff = cur_world_loc - target_loc;
           float distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
@@ -338,11 +334,11 @@ __device__ __inline__ void occlusionFilter( float& blurred_occ_sum,
             float3 target_n = n[target_index];
             if (acos(dot(target_n, cur_n)) < angle_threshold) {
               float weight = gaussFilter(distancesq, wxf);
-              float target_occ_val = target_occ.x;
+              float target_vis_val = target_vis.x;
               if (pass == 1) {
-                target_occ_val = occ_blur1d[target_index];
+                target_vis_val = vis_blur1d[target_index];
               }
-              blurred_occ_sum += weight * target_occ_val;
+              blurred_vis_sum += weight * target_vis_val;
               sum_weight += weight;
             }
           }
@@ -351,145 +347,86 @@ __device__ __inline__ void occlusionFilter( float& blurred_occ_sum,
 }
 
 RT_PROGRAM void occlusion_filter_first_pass() {
-  float4 cur_occ = occ[launch_index];
-  float wxf = cur_occ.z;
-  float blurred_occ = cur_occ.x;
+  float3 cur_vis = vis[launch_index];
+  float wxf = computeWxf(slope[launch_index].y);
+  float blurred_vis = cur_vis.x;  float2 cur_slope = slope[launch_index];
   if (wxf < 0.0) {
-    occ_blur1d[launch_index] = blurred_occ;
+    vis_blur1d[launch_index] = blurred_vis;
     return;
   }
   
   if (blur_occ) {
 
-    float blurred_occ_sum = 0.0f;
+    float blurred_vis_sum = 0.0f;
     float sum_weight = 0.0f;
 
     float3 cur_world_loc = world_loc[launch_index];
     float3 cur_n = n[launch_index];
-    size_t2 buf_size = occ.size();
+    size_t2 buf_size = vis.size();
 
     for (int i = -pixel_radius.x; i < pixel_radius.x; i++) {
-      occlusionFilter(blurred_occ_sum, sum_weight, cur_world_loc, cur_n, wxf,
+      occlusionFilter(blurred_vis_sum, sum_weight, cur_world_loc, cur_n, wxf,
         launch_index.x+i, launch_index.y, buf_size, 0);
     }
-
+    
     if (sum_weight > 0.0f)
-      blurred_occ = blurred_occ_sum / sum_weight;
+      blurred_vis = blurred_vis_sum / sum_weight;
     else
-      blurred_occ = blurred_occ_sum;
+      blurred_vis = blurred_vis_sum;
   }
 
-  occ_blur1d[launch_index] = blurred_occ;
+  vis_blur1d[launch_index] = blurred_vis;
 }
 
 RT_PROGRAM void occlusion_filter_second_pass() {
-  float4 cur_occ = occ[launch_index];
-  float wxf = cur_occ.z;
-  float blurred_occ = occ_blur1d[launch_index];
+  float3 cur_vis = vis[launch_index];
+  float wxf = computeWxf(slope[launch_index].y);
+  float blurred_vis = vis_blur1d[launch_index];
 
   if (blur_occ) {
-    if (wxf <= 0.0) {
-      occ[launch_index].x = blurred_occ;
+    if (!use_filter_occ[launch_index] || !use_filter_n[launch_index]) {
+      vis[launch_index].x = blurred_vis;
       return;
     }
 
-    float blurred_occ_sum = 0.0f;
+    float blurred_vis_sum = 0.0f;
     float sum_weight = 0.0f;
 
     float3 cur_world_loc = world_loc[launch_index];
     float3 cur_n = n[launch_index];
-    size_t2 buf_size = occ.size();
+    size_t2 buf_size = vis.size();
 
     for (int j = -pixel_radius.y; j < pixel_radius.y; j++) {
-      occlusionFilter(blurred_occ_sum, sum_weight, cur_world_loc, cur_n, wxf,
+      occlusionFilter(blurred_vis_sum, sum_weight, cur_world_loc, cur_n, wxf,
         launch_index.x, launch_index.y+j, buf_size, 1);
     }
 
     if (sum_weight > 0.0f)
-      blurred_occ = blurred_occ_sum / sum_weight;
+      blurred_vis = blurred_vis_sum / sum_weight;
     else
-      blurred_occ = blurred_occ_sum;
+      blurred_vis = blurred_vis_sum;
   }
 
-  occ[launch_index].x = blurred_occ;
+  vis[launch_index].x = blurred_vis;
 }
-
 __device__ __inline__ void wxfFilterBilateral( float& blurred_wxf_sum,
   float& sum_weight, float cur_wxf, unsigned int i,
   unsigned int j, const::optix::size_t2& buf_size, unsigned int pass = 0) {
-  const float k = 0.5; //Guessing...
 
-    if (i > 0 && i < buf_size.x && j > 0 && j < buf_size.y) {
-      uint2 target_index = make_uint2(i,j);
-      if (occ[target_index].z < 0)
-        return;
-      float target_wxf;
-      if (pass == 0) {
-        target_wxf = occ[target_index].z;
-      } else {
-        target_wxf = wxf_blur1d[target_index];
-      }
-      if (target_wxf > 10000.0)
-        return;
-      float wxf_diff = target_wxf - cur_wxf;
-      float weight = 1.0; // exp(-(wxf_diff*wxf_diff)/(k*k));
-      blurred_wxf_sum += weight * target_wxf;
-      sum_weight += weight;
-    }
 }
 
 RT_PROGRAM void wxf_filter_first_pass() {
-  float blurred_wxf = occ[launch_index].z;
 
-  if (blur_wxf && blurred_wxf > 0) {
-    if (blurred_wxf > 10000.0) {
-      blurred_wxf = 0.5f;
-    }
-    float blurred_wxf_sum = 0.0f;
-    float sum_weight = 0.0f;
-    size_t2 buf_size = occ.size(); 
-
-    for (int i = -pixel_radius_wxf.x; i < pixel_radius_wxf.x; i++) {
-      wxfFilterBilateral(blurred_wxf_sum, sum_weight, blurred_wxf,
-        launch_index.x+i, launch_index.y, buf_size, 0);
-    }
-    if (sum_weight > 0.0001f)
-      blurred_wxf = blurred_wxf_sum / sum_weight;
-    else
-      blurred_wxf = blurred_wxf_sum;
-  }
-
-  wxf_blur1d[launch_index] = blurred_wxf;
 }
 RT_PROGRAM void wxf_filter_second_pass() {
-  float blurred_wxf = wxf_blur1d[launch_index];
 
-  if (blur_wxf && blurred_wxf > 0) {    if (blurred_wxf > 10000.0) {
-      blurred_wxf = 0.5f;
-    }
-    float blurred_wxf_sum = 0.0f;
-    float sum_weight = 0.0f;
-    size_t2 buf_size = occ.size(); 
-
-    for (int j = -pixel_radius_wxf.y; j < pixel_radius_wxf.y; j++) {
-      wxfFilterBilateral(blurred_wxf_sum, sum_weight, blurred_wxf,
-        launch_index.x, launch_index.y+j, buf_size, 1);
-    }
-    if (sum_weight > 0.00001f)
-      blurred_wxf = blurred_wxf_sum / sum_weight;
-    else
-      blurred_wxf = blurred_wxf_sum;
-  }
-
-  occ[launch_index].z = blurred_wxf;
 }
-
 //
 // Returns solid color for miss rays
 //
 RT_PROGRAM void miss()
 {
-  prd_radiance.result = bg_color;
+  prd_radiance.brdf = bg_color;
   prd_radiance.hit_shadow = false;
   //prd_radiance.shadow_intersection = 100000.0f;
 }
@@ -543,22 +480,10 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.world_loc = hit_point;
   prd_radiance.hit = true;
   prd_radiance.n = ffnormal;
-  //occlusion values
-  unsigned int occlusion = 0;
-
-  prd_radiance.dist_scale = 1.0/(t_hit*tan(30.0*M_PI/180.0)); 
-      //divide by 360 to get absolute between pixel and image
-
 
   uint2 seed = shadow_rng_seeds[launch_index];
-  //seed.x = rot_seed(seed.x, frame);
-  //seed.y = rot_seed(seed.y, frame);
-  //float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
-
-  //shadow_rng_seeds[launch_index] = seed;
 
 
-  prd_radiance.wxf = 0.0f;
   //Assume 1 light for now
   AreaLight light = lights[0];
   float3 lx = light.v2 - light.v1;
@@ -568,40 +493,24 @@ RT_PROGRAM void closest_hit_radiance3()
   float3 colorAvg = make_float3(0,0,0);
 
   //phong values
-  //assuming ambocc for now
-  //THIS IS WRONG, FIX IT SOON
-  /*
-     if (prd_radiance.brdf) {
-
-     float3 H = normalize(ffnormal - ray.direction);
-     float nDh = dot( ffnormal, H );
-     if (nDh > 0)
-     colorAvg += Ks * pow(nDh, phong_exp);
-     }
-   */
-  if(prd_radiance.brdf) {
-    float3 phong_target = 0.5 * lx + 0.5 * ly + lo;
-    float3 phong_dir = normalize( phong_target - hit_point );
-
-    float3 L = normalize(phong_target - hit_point);
+  float3 light_center = (0.5 * lx + 0.5 * ly) +lo;
+  float3 to_light = light_center - hit_point;
+  float dist_to_light = sqrt(to_light.x*to_light.x + to_light.y*to_light.y + to_light.z*to_light.z);
+  prd_radiance.dist_to_light = dist_to_light;
+  if(prd_radiance.first_pass) {
+    float3 L = normalize(to_light);
     float nDl = dot( ffnormal, L );
-    float3 H = normalize(phong_dir - ray.direction);
+    float3 H = normalize(L - ray.direction);
     float nDh = dot( ffnormal, H );
     //temporary - white light
     float3 Lc = make_float3(1,1,1);
     color += Kd * nDl * Lc;// * strength;
     if (nDh > 0)
       color += Ks * pow(nDh, phong_exp);
+    prd_radiance.brdf = color;
   }
 
-  //hardcoded sigma for now (for light intensity)
-
   //Stratify x
-  float num_occ = 0;
-  float occ_strength_tot = 0.0;
-  float distance_summed = 0.0;
-  bool hit_shadow = false;
-  float3 light_center = (0.5 * lx + 0.5 * ly) +lo;
   for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
     seed.x = rot_seed(seed.x, i);
 
@@ -630,40 +539,33 @@ RT_PROGRAM void closest_hit_radiance3()
 
       float3 sampleDir = normalize(target - hit_point);
 
-      float3 distancevectoocc = target-hit_point;
-      float distancetolight = sqrt(distancevectoocc.x*distancevectoocc.x + distancevectoocc.y*distancevectoocc.y + distancevectoocc.z * distancevectoocc.z);
-      distance_summed += distancetolight;
-
       if(dot(ffnormal, sampleDir) > 0.0f) {
-        prd_radiance.use_filter = true;
-        num_occ += strength;
-
+        prd_radiance.use_filter_n = true;
+        prd_radiance.vis_weight_tot += strength;
 
         // SHADOW
         //cast ray and check for shadow
         PerRayData_shadow shadow_prd;
         shadow_prd.attenuation = make_float3(strength);
         shadow_prd.distance_max = 0;
-        shadow_prd.distance_min = distancetolight;
+        shadow_prd.distance_min = dist_to_light;
         shadow_prd.hit = false;
         optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
         rtTrace(top_shadower, shadow_ray, shadow_prd);
-        occlusion += shadow_prd.attenuation.x;
  
         if(shadow_prd.hit) {
-          hit_shadow = true;
-          float d2min = distancetolight - shadow_prd.distance_max;
-          float d2max = distancetolight - shadow_prd.distance_min;
+          prd_radiance.hit_shadow = true;
+          float d2min = dist_to_light - shadow_prd.distance_max;
+          float d2max = dist_to_light - shadow_prd.distance_min;
           if (shadow_prd.distance_max < 0.000000001)
-            d2min = distancetolight;
+            d2min = dist_to_light;
+          float s1 = dist_to_light/d2min - 1.0;
+          float s2 = dist_to_light/d2max - 1.0;
 
-          prd_radiance.d2min = d2min;
-          prd_radiance.d2max = d2max;
-
-          float scale = distancetolight/d2min - 1;
-          float wxf = 1/(scale*light_sigma);
-          float wxfsq = wxf*wxf;
-          prd_radiance.wxf = max(wxf,prd_radiance.wxf);
+          prd_radiance.s1 = max(prd_radiance.s1, s1);
+          prd_radiance.s2 = min(prd_radiance.s2, s2);
+        } else {
+          prd_radiance.unavg_vis += strength;
         }
       }
 
@@ -671,7 +573,6 @@ RT_PROGRAM void closest_hit_radiance3()
   }
 
   shadow_rng_seeds[launch_index] = seed;
-  distance_summed /= prd_radiance.sqrt_num_samples * prd_radiance.sqrt_num_samples;
 
   /*
      float importance = prd_radiance.importance * optix::luminance( reflectivity );
@@ -685,24 +586,6 @@ RT_PROGRAM void closest_hit_radiance3()
      rtTrace(top_object, refl_ray, refl_prd);
   //color += reflectivity * refl_prd.result;
   }*/
-
-  float s1 = distance_summed/prd_radiance.d2min - 1.0;
-  float s2 = distance_summed/prd_radiance.d2max - 1.0;
-  s1 = max(prd_radiance.s1,s1);
-  s2 = min(prd_radiance.s2,s2);
-  prd_radiance.s1 = s1;
-  prd_radiance.s2 = s2;
-
-
-  if(!hit_shadow) {
-    //prd_radiance.spp = 0;
-    prd_radiance.wxf = 0.1f; //100000.0f;
-  }
-  prd_radiance.hit_shadow = hit_shadow;
-
-  prd_radiance.unavg_occ = occlusion;
-  prd_radiance.num_occ = num_occ;
-  prd_radiance.result = color;
 }
 
 
