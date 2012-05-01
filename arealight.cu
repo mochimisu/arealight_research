@@ -226,6 +226,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
     vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
+  theoretical_spp = 100000.0;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
