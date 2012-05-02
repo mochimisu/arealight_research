@@ -240,7 +240,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
-  _view_mode = 1;
+  _view_mode = 0;
   _context["view_mode"]->setUint(_view_mode);
 
   _show_brdf = 1;
@@ -249,12 +249,12 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
   
-  _sigma = 0.25;
+  _sigma = 0.75;
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
-  _brute_rpp = 20;
-  _max_rpp_pass = 7;
+  _brute_rpp = 200;
+  _max_rpp_pass = 10;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -324,39 +324,51 @@ void Arealight::initScene( InitialCameraData& camera_data )
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
-  // Area lights
-
-  /*
+#if 1
+  // grids2
   AreaLight lights[] = {
-    { make_float3(0.0f, 15.0f, -16.0f),
-      make_float3(0.0f, 10.0f, -16.0f),
-      make_float3(10.0f, 15.0f, -16.0f),
-      make_float3(1.0f, 1.0f, 1.0f)
-    }
-  };
-  */
-  /*
-  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -5.0))
-    * Matrix4x4::rotate(-65.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
-    * Matrix4x4::rotate(-15.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
-    * Matrix4x4::scale(make_float3(10.0f,10.0f,10.0f));
-  AreaLight lights[] = {
-    { make_float3( overall_xform * make_float4(20.5556f, 18.1727f, -3.0591f, 1.0f) ),
-    make_float3( overall_xform * make_float4(20.5556f, 18.1727f, 1.0591f, 1.0f) ),
-    make_float3( overall_xform * make_float4(17.727172875f, 21.001127125, -3.0591f, 1.0f) ),
+    { make_float3( -4.5, 16, 8 ),
+    make_float3( 1.5, 16, 8 ),
+    make_float3( -4.5, 21.8284, 3.8284 ),
     make_float3(1.0f, 1.0f, 1.0f)
     }
   };
-  */
+
   /*
   AreaLight lights[] = {
-  { make_float3( 20.5556f, 18.1727f, -3.0591f),
-  make_float3( 20.5556f, 18.1727f, -2.0591f),
-  make_float3( 17.727172875f, 21.001127125, -3.0591f),
-  make_float3(1.0f, 1.0f, 1.0f)
-  }
-  };
-  */
+    { make_float3( 0.0, 6.0, -7.0 ),
+    make_float3( 4.0, 6.0, -7.0 ),
+    make_float3( 0.0, 8.82842712474619f, -4.171572875 ),
+    make_float3(1.0f, 1.0f, 1.0f)
+    }
+  };*/
+  _env_lights = lights;
+  light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
+  light_buffer->setFormat(RT_FORMAT_USER);
+  light_buffer->setElementSize(sizeof(AreaLight));
+  //light_buffer->setSize( sizeof(_env_lights)/sizeof(_env_lights[0]) );
+  //memcpy(light_buffer->map(), _env_lights, sizeof(_env_lights));
+  light_buffer->setSize( sizeof(lights)/sizeof(lights[0]) );
+  memcpy(light_buffer->map(), lights, sizeof(lights));
+  light_buffer->unmap();
+
+  _context["lights"]->set(light_buffer);
+
+
+  // Set up camera
+  camera_data = InitialCameraData( make_float3( 5.0f, 3.0f, -1.0f ), // eye
+    make_float3( 0.0f, 0.0f,  0.0f ), // lookat
+    make_float3( 0.0f, 1.0f,  0.0f ), // up
+    60 );                             // vfov
+
+  _context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+  _context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+  _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+  _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+
+#else
+  // balance
+  // Area lights
   AreaLight lights[] = {
     { make_float3( 18.5556f, 25.1727f, 10.9409f),
     make_float3( 18.5556f, 25.1727f, 11.9409f),
@@ -392,6 +404,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+#endif
 
   _env_theta = 0.0f;
   _env_phi = 0.0f;
@@ -463,7 +476,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 #if 1
-  num_resample = 4;
+  num_resample = 1000;
   for(int i = 0; i < num_resample; i++)
 #endif
   _context->launch( 6, static_cast<unsigned int>(buffer_width),
@@ -935,7 +948,7 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
     target->setChild(ct_target + i, source->getChild(i));
 }
 
-#if 0
+#if 1
 //grids2
 void Arealight::createGeometry()
 {
@@ -997,8 +1010,6 @@ void Arealight::createGeometry()
   floor_xform_m[10] = 4.0;
   floor_xform_m[12] = 0.0778942;
   floor_xform_m[14] = 0.17478;
-  std::cout << floor_xform[12] << std::endl;
-
 
   Matrix4x4 grid1_xform = Matrix4x4::identity();
   float *grid1_xform_m = grid1_xform.getData();
@@ -1036,7 +1047,7 @@ void Arealight::createGeometry()
   grid2_xform_m[12] = 0.142805;
   grid2_xform_m[13] = 1.0837;
   grid2_xform_m[14] = 0.288514;
-  grid2_xform_m[15] = 1.0;
+  grid2_xform_m[15] = 1.0;
   
   Matrix4x4 grid3_xform = Matrix4x4::identity();
   float *grid3_xform_m = grid3_xform.getData();
@@ -1056,15 +1067,17 @@ void Arealight::createGeometry()
   grid3_xform_m[13] = 1.86879;
   grid3_xform_m[14] = 1.00696;
   grid3_xform_m[15] = 1.0;
-  
 
+  floor_xform = floor_xform.transpose();
+  grid1_xform = grid1_xform.transpose();
+  grid2_xform = grid2_xform.transpose();  grid3_xform = grid3_xform.transpose();
 
   //Load the OBJ's
   ObjLoader * floor_loader = new ObjLoader( texpath("grids2/floor.obj").c_str(), _context, floor_geom_group, floor_mat );
   floor_loader->load(floor_xform);
   ObjLoader * grid1_loader = new ObjLoader( texpath("grids2/grid1.obj").c_str(), _context, grid1_geom_group, grid1_mat );
   grid1_loader->load(grid1_xform);
-  ObjLoader * grid2_loader = new ObjLoader( texpath("grids2-2/grid2.obj").c_str(), _context, grid2_geom_group, grid2_mat );
+  ObjLoader * grid2_loader = new ObjLoader( texpath("grids2/grid2.obj").c_str(), _context, grid2_geom_group, grid2_mat );
   grid2_loader->load(grid2_xform);
   ObjLoader * grid3_loader = new ObjLoader( texpath("grids2/grid3.obj").c_str(), _context, grid3_geom_group, grid3_mat );
   grid3_loader->load(grid3_xform);
@@ -1072,16 +1085,25 @@ void Arealight::createGeometry()
 
   //Make one big geom group
   GeometryGroup geom_group = _context->createGeometryGroup();
+
+  geom_group->setChildCount(3);
+  geom_group->setChild( 0, floor_geom_group->getChild(0) );
+  geom_group->setChild( 1, grid1_geom_group->getChild(0) );
+  geom_group->setChild( 2, grid2_geom_group->getChild(0) );
+  //geom_group->setChild( 3, grid2_geom_group->getChild(0) );
+
   //appendGeomGroup(geom_group, floor_geom_group);
   std::cout << "asdf" << std::endl;
   std::cout << floor_geom_group->getChildCount() << std::endl;
   std::cout << geom_group->getChildCount() << std::endl;
   //appendGeomGroup(geom_group, grid1_geom_group);
-  appendGeomGroup(geom_group, grid2_geom_group);
+  //appendGeomGroup(geom_group, grid2_geom_group);
   //appendGeomGroup(geom_group, grid3_geom_group);
   //geom_group->setChild(ct, global);
-  //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
-  geom_group->setAcceleration( floor_geom_group->getAcceleration() );
+  geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
+  Acceleration accl = floor_geom_group->getAcceleration();
+  std::cout << accl->getBuilder() << std::endl;
+  //geom_group->setAcceleration( grid1_geom_group->getAcceleration() );
 
   //Set the geom group
   _context["top_object"]->set( geom_group );

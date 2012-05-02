@@ -225,8 +225,8 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
-  theoretical_spp = 100000.0;
-  spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
+  //theoretical_spp = 100000.0;
+  spp[launch_index] = min(3*theoretical_spp, (float) brute_rpp * brute_rpp);
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
     vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
@@ -271,9 +271,6 @@ RT_PROGRAM void pinhole_camera_continue_sample() {
     vis[launch_index].y = prd.unavg_vis;
     if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
       vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
-    } else {
-      vis[launch_index].x = 1.0;
-      brdf[launch_index].x = 1.0;
     }
   }
 
