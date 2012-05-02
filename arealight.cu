@@ -219,11 +219,10 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   brdf[launch_index] = prd.brdf;
   n[launch_index] = normalize(prd.n);
 
-  slope[launch_index] =make_float2(prd.s1, prd.s2);
+  slope[launch_index] = make_float2(prd.s1, prd.s2);
   use_filter_n[launch_index] = prd.use_filter_n;
   use_filter_occ[launch_index] = prd.hit_shadow;
-  //if (!prd.use_filter_n || !prd.hit_shadow)
-    vis[launch_index].x = 1;
+  vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
   theoretical_spp = 100000.0;
@@ -231,33 +230,33 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
     vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
-    vis[launch_index].y = prd.unavg_vis;
   }
+  vis[launch_index].y = prd.unavg_vis;
   vis[launch_index].z = prd.vis_weight_tot;
 }
 
-RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buffer.size();
-
-  float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
-  float3 ray_origin = eye;
-  float3 ray_direction = normalize(d.x*U + d.y*V + W);
-  PerRayData_radiance prd;
-
-  prd.first_pass = false;
-  prd.unavg_vis = vis[launch_index].y;
-  prd.vis_weight_tot = vis[launch_index].z;
-  prd.hit_shadow = false;
-  prd.use_filter_n = use_filter_n[launch_index];
-  prd.s1 = slope[launch_index].x;
-  prd.s2 = slope[launch_index].y;
-
-  optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
-
+RT_PROGRAM void pinhole_camera_continue_sample() {
   float target_spp = spp[launch_index];
   float cur_spp = spp_cur[launch_index];
 
   // Compute spp difference
   if (cur_spp < target_spp ) {
+    size_t2 screen = output_buffer.size();
+
+    float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
+    float3 ray_origin = eye;
+    float3 ray_direction = normalize(d.x*U + d.y*V + W);
+    PerRayData_radiance prd;
+
+    prd.first_pass = false;
+    prd.unavg_vis = vis[launch_index].y;
+    prd.vis_weight_tot = vis[launch_index].z;
+    prd.hit_shadow = false;
+    prd.use_filter_n = use_filter_n[launch_index];
+    prd.s1 = slope[launch_index].x;
+    prd.s2 = slope[launch_index].y;
+
+    optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon); 
     int new_samp = min((int) (target_spp - cur_spp), (int) max_rpp_pass*max_rpp_pass);
     int sqrt_samp = ceil(sqrt((float)new_samp));
     prd.sqrt_num_samples = sqrt_samp;
@@ -266,10 +265,15 @@ RT_PROGRAM void pinhole_camera_continue_sample() {  size_t2 screen = output_buf
     spp_cur[launch_index] = cur_spp;
 
     rtTrace(top_object, ray, prd);
-    vis[launch_index].z += prd.vis_weight_tot;
+    if (!prd.hit)
+      return;
+    vis[launch_index].z = prd.vis_weight_tot;
+    vis[launch_index].y = prd.unavg_vis;
     if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
-      vis[launch_index].y += prd.unavg_vis;
-      vis[launch_index].x = vis[launch_index].y/vis[launch_index].z;
+      vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
+    } else {
+      vis[launch_index].x = 1.0;
+      brdf[launch_index].x = 1.0;
     }
   }
 
@@ -545,7 +549,6 @@ RT_PROGRAM void closest_hit_radiance3()
         + (light_center.y - target.y) * (light_center.y - target.y) \
         + (light_center.z - target.z) * (light_center.z - target.z)) \
         / ( 2 * light_sigma * light_sigma));
-      
 
       float3 sampleDir = normalize(target - hit_point);
 
