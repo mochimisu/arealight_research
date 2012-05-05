@@ -106,10 +106,10 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
 }
 */
 
-__device__ __inline__ float gaussFilter(float dist_sq, float sigma_sq)
+__device__ __inline__ float gaussFilter(float dist_sq, float wxf)
 {
-  float sample = dist_sq/(2*sigma_sq);
-  if (sample > 5.99) {
+  float sample = dist_sq*wxf*wxf;
+  if (sample > 10.99) {
     return 0.0;
   }
   float scaled = sample*10;
