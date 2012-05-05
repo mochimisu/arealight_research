@@ -240,6 +240,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer filter_occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["use_filter_occ"]->set( filter_occ );
 
+  Buffer filter_occ_filter1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["use_filter_occ_filter1d"]->set( filter_occ_filter1d );
+
   Buffer s1s2_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["slope_filter1d"]->set( s1s2_blur1d );
 
@@ -255,7 +258,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
-  _view_mode = 0;
+  _view_mode = 1;
   _context["view_mode"]->setUint(_view_mode);
 
   _show_brdf = 1;
@@ -264,8 +267,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
   
-  _sigma = 0.75;
-  _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
   _brute_rpp = 20;
@@ -358,7 +359,12 @@ void Arealight::initScene( InitialCameraData& camera_data )
     }
   };
 
-  _context["lightnorm"]->setFloat(norm);
+  float3 normed_norm = normalize(norm);
+  _context["lightnorm"]->setFloat(normed_norm);
+  _sigma = sqrt(length(norm)/4.0f);
+  std::cout << "Sigma: " << _sigma << std::endl;
+  //_sigma = 0.75;
+  _context["light_sigma"]->setFloat(_sigma);
 
   /*
   AreaLight lights[] = {
@@ -502,17 +508,17 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   //Initial 16 Samples
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+  //Filter s1,s2
+  _context->launch( 4, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
+  _context->launch( 5, static_cast<unsigned int>(buffer_width),
+    static_cast<unsigned int>(buffer_height) );
   //Resample
 #if 1
   num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
   _context->launch( 6, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  //Filter s1,s2
-  _context->launch( 4, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  _context->launch( 5, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   //Filter occlusion
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
@@ -779,7 +785,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
         std::cout << "Blur: On" << std::endl;
       else
         std::cout << "Blur: Off" << std::endl;
-      return true;
+      return true;
+
     case 'H':
     case 'h':
       _blur_wxf = 1-_blur_wxf;
@@ -800,7 +807,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       return true;
     case 'Z':
     case 'z':
-      _view_mode = (_view_mode+1)%8;
+      _view_mode = (_view_mode+1)%9;
       _context["view_mode"]->setUint(_view_mode);
       switch(_view_mode) {
       case 0:
@@ -998,7 +1005,9 @@ void Arealight::createGeometry()
   grid2_xform_m[12] = 0.142805;
   grid2_xform_m[13] = 1.0837;
   grid2_xform_m[14] = 0.288514;
-  grid2_xform_m[15] = 1.0;
+  grid2_xform_m[15] = 1.0;
+
+
   
   Matrix4x4 grid3_xform = Matrix4x4::identity();
   float *grid3_xform_m = grid3_xform.getData();
@@ -1021,7 +1030,8 @@ void Arealight::createGeometry()
 
   floor_xform = floor_xform.transpose();
   grid1_xform = grid1_xform.transpose();
-  grid2_xform = grid2_xform.transpose();  grid3_xform = grid3_xform.transpose();
+  grid2_xform = grid2_xform.transpose();
+  grid3_xform = grid3_xform.transpose();
 
   //Load the OBJ's
   ObjLoader * floor_loader = new ObjLoader( texpath("grids2/floor.obj").c_str(), _context, floor_geom_group, floor_mat );
