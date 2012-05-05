@@ -192,7 +192,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["slope"]->set( slope );
 
   // gauss values
-  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
+  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 60); //65);
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
@@ -206,8 +206,23 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
     0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
     0.003, 0.0 };
+    const float exp_lookup[60] = {1.0000,    0.9048,    0.8187,    0.7408,    
+      0.6703,    0.6065,    0.5488,    0.4966,    0.4493,    0.4066,   
+      0.3679,    0.3329,    0.3012,    0.2725,    0.2466,    0.2231,   
+      0.2019,    0.1827,    0.1653,    0.1496,    0.1353,    0.1225,    
+      0.1108,    0.1003,    0.0907,    0.0821,    0.0743,   0.0672,    
+      0.0608,    0.0550,    0.0498,    0.0450,    0.0408,    0.0369,    
+      0.0334,    0.0302,    0.0273,    0.0247,    0.0224,    0.0202,   
+      0.0183,    0.0166,    0.0150,    0.0136,    0.0123,    0.0111,    
+      0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
+      0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
+      0.0030,    0.0027 };
+    /*
   for(int i=0; i<65; i++) {
     lookups[i] = gaussian_lookup[i];
+  }*/
+  for(int i=0; i<60; i++) {
+    lookups[i] = exp_lookup[i];
   }
 
   gauss_lookup->unmap();
@@ -225,8 +240,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer filter_occ = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["use_filter_occ"]->set( filter_occ );
 
-  Buffer wxf_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  _context["wxf_blur1d"]->set( wxf_blur1d );
+  Buffer s1s2_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
+  _context["slope_filter1d"]->set( s1s2_blur1d );
 
   Buffer dist_to_light = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_to_light"]->set( dist_to_light );

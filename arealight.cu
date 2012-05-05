@@ -92,7 +92,7 @@ __device__ __inline__ float3 heatMap(float val) {
 }
 
 rtBuffer<float, 1>              gaussian_lookup;
-
+/*
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
   float sample = distsq*wxf*wxf;
@@ -102,6 +102,20 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
   float scaled = sample*64;
   int index = (int) scaled;
   float weight = scaled - index;
+  return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
+}
+*/
+
+__device__ __inline__ float gaussFilter(float dist_sq, float sigma_sq)
+{
+  float sample = dist_sq/(2*sigma_sq);
+  if (sample > 5.99) {
+    return 0.0;
+  }
+  float scaled = sample*10;
+  int index = (int) scaled;
+  float weight = scaled - index;
+  //now return exp(-0.5*dist_sq/sigma_sq)
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
 
@@ -136,7 +150,7 @@ rtBuffer<float3, 2>               vis;
 rtBuffer<float, 2>                vis_blur1d;
 rtBuffer<float3, 2>               world_loc;
 rtBuffer<float3, 2>               n;
-rtBuffer<float, 2>                wxf_blur1d;
+rtBuffer<float2, 2>                slope_filter1d;
 rtBuffer<float, 2>                spp;
 rtBuffer<float, 2>                spp_cur;
 
@@ -434,15 +448,13 @@ RT_PROGRAM void occlusion_filter_second_pass() {
 
   vis[launch_index].x = blurred_vis;
 }
-__device__ __inline__ void wxfFilterBilateral( float& blurred_wxf_sum,
-  float& sum_weight, float cur_wxf, unsigned int i,
+__device__ __inline__ void s1s2FilterMaxMin( float2& slope_sum,
+  float2& slope_sum_weight, float2 cur_slope, unsigned int i,
   unsigned int j, const::optix::size_t2& buf_size, unsigned int pass = 0) {
 
 }
 
-RT_PROGRAM void s1s2_filter_first_pass() {
-
-}
+RT_PROGRAM void s1s2_filter_first_pass() {  float2 cur_slope = slope[launch_index];  float2 slope_sum = make_float2(0,0);  float2 slope_sum_weight = make_float2(0,0);  /*  for (int i = -5; i < 5; i++) {    //wxfFilterMaxMin();    continue;  }  */  if (slope_sum_weight.x > 0.0f)    cur_slope.x = slope_sum.x / slope_sum_weight.x;  if (slope_sum_weight.y > 0.0f)    cur_slope.y = slope_sum.y / slope_sum_weight.y;  slope_filter1d[launch_index] = cur_slope;  return;}
 RT_PROGRAM void s1s2_filter_second_pass() {
 
 }
