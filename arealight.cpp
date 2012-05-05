@@ -484,103 +484,30 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   int num_resample = ceil((float)_brute_rpp * _brute_rpp / (_max_rpp_pass * _max_rpp_pass));
   //std::cout << "Number of passes to resample: " << num_resample << std::endl;
 
+  //Initial 16 Samples
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+  //Resample
 #if 1
   num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
   _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+  //Filter s1,s2
   _context->launch( 4, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+  //Filter occlusion
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+  //Display
   _context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 
-
-#if 0
-#ifdef BENCHMARK_NUM
-  if(_benchmark_iter < BENCHMARK_NUM)
-#endif
-  _context->launch( 0, static_cast<unsigned int>(buffer_width),
-      static_cast<unsigned int>(buffer_height) );
-  if (_frame_number == 0) {
-    /*
-    int cur_time = timeGetTime();
-    std::cout << "First rays done: " << (cur_time - _started_render) << "ms" << std::endl;
-    */
-    LARGE_INTEGER cur_time;
-    QueryPerformanceCounter(&cur_time);
-    //std::cout << "First rays done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
-    _timings[0] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
-  }
-  if (_frame_number == 1) {
-
-    LARGE_INTEGER cur_time;
-    QueryPerformanceCounter(&cur_time);
-    //std::cout << "Second rays done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
-    _timings[1] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
-    _started_blur = cur_time;
-    /*  
-    int cur_time = timeGetTime();
-    _started_blur = cur_time;
-    std::cout << "Second rays done: " << (cur_time - _started_render) << "ms" << std::endl;
-    std::cout << "Starting blur (2 frames)..." << std::endl;
-    */
-  }
-
-  if (_frame_number == 3) {
-
-    LARGE_INTEGER cur_time;
-    QueryPerformanceCounter(&cur_time);
-    //std::cout << "Total render done: " << (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq) << "ms" << std::endl;
-    //std::cout << "Blur time: " << (double(cur_time.QuadPart - _started_blur.QuadPart)/_perf_freq) << "ms" << std::endl;
-    _timings[2] = (double(cur_time.QuadPart - _started_render.QuadPart)/_perf_freq);
-    _timings[3] = (double(cur_time.QuadPart - _started_blur.QuadPart)/_perf_freq);
-    //print stuff at end so we dont get slowdown due to cout
-#ifndef BENCHMARK_NUM
-    std::cout << "First rays done: " << _timings[0] << "ms" << std::endl;
-    std::cout << "Second rays done: " << _timings[1] << "ms" << std::endl;
-    std::cout << "Total render done: " << _timings[2] << "ms" << std::endl;
-    std::cout << "Blur time: " << _timings[3] << "ms" << std::endl;
-#endif
-    
-    /*
-    int cur_time = timeGetTime();
-    std::cout << "Total render done (including blur): " << (cur_time - _started_render) << "ms" << std::endl;
-    std::cout << "Blur time: " << (cur_time - _started_blur) << "ms" << std::endl;
-    */
-  }
-
-#ifdef BENCHMARK_NUM
-  if (_frame_number == 3) {
-    _benchmark_timings[0] += _timings[0];
-    _benchmark_timings[1] += _timings[1];
-    _benchmark_timings[2] += _timings[2];
-    _benchmark_timings[3] += _timings[3];
-    resetAccumulation();
-    _benchmark_iter++;
-  }
-  if (_benchmark_iter == BENCHMARK_NUM) {
-    _benchmark_timings[0] /= BENCHMARK_NUM;
-    _benchmark_timings[1] /= BENCHMARK_NUM;
-    _benchmark_timings[2] /= BENCHMARK_NUM;
-    _benchmark_timings[3] /= BENCHMARK_NUM;
-    std::cout << "Benchmark results for " << BENCHMARK_NUM  << " attempts" << std::endl;;
-    std::cout << "First rays done: " << _benchmark_timings[0] << "ms" << std::endl;
-    std::cout << "Second rays done: " << _benchmark_timings[1] << "ms" << std::endl;
-    std::cout << "Total render done: " << _benchmark_timings[2] << "ms" << std::endl;
-    std::cout << "Blur time: " << _benchmark_timings[3] << "ms" << std::endl;
-    _benchmark_iter++;
-  }
-#endif
-#endif
 
 }
 
