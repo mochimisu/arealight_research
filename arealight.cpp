@@ -253,7 +253,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["light_sigma"]->setFloat(_sigma);
 
   _normal_rpp = 4;
-  _brute_rpp = 200;
+  _brute_rpp = 20;
   _max_rpp_pass = 10;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -326,6 +326,15 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 #if 1
   // grids2
+  float3 pos = make_float3(-4.5, 16, 8);
+  float3 pos1 = make_float3(1.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
+
+  float3 axis1 = pos1-pos;
+  float3 axis2 = pos2-pos;
+
+  float3 norm = cross(axis1,axis2);
+
   AreaLight lights[] = {
     { make_float3( -4.5, 16, 8 ),
     make_float3( 1.5, 16, 8 ),
@@ -333,6 +342,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
     make_float3(1.0f, 1.0f, 1.0f)
     }
   };
+
+  _context["lightnorm"]->setFloat(norm);
 
   /*
   AreaLight lights[] = {
@@ -476,7 +487,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 #if 1
-  num_resample = 1000;
+  num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
   _context->launch( 6, static_cast<unsigned int>(buffer_width),

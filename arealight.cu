@@ -226,7 +226,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 
   spp_cur[launch_index] = current_spp;
   //theoretical_spp = 100000.0;
-  spp[launch_index] = min(3*theoretical_spp, (float) brute_rpp * brute_rpp);
+  spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
     vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
@@ -324,13 +324,26 @@ RT_PROGRAM void display_camera() {
 
 }
 
+rtBuffer<AreaLight>        lights;
+rtDeclareVariable(float3,        lightnorm, , );
+
 __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
   float& sum_weight, const optix::float3& cur_world_loc, float3 cur_n,
   float wxf, int i, int j, const optix::size_t2& buf_size, 
   unsigned int pass ) {
     const float dist_scale_threshold = 1.0f;
     const float dist_threshold = 1.0f;
-    const float angle_threshold = 20.0f * M_PI/180.0f;
+    const float angle_threshold = 20.0f * M_PI/180.0f;
+    //TODO: precompute light normal
+    /*
+    AreaLight light = lights[0];
+    float3 lx = light.v2 - light.v1;
+    float3 ly = light.v3 - light.v1;
+    float3 lo = light.v1;
+    float3 ln = cross(lx,ly);
+    */
+
+
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
       uint2 target_index = make_uint2(i,j);
       float3 target_vis = vis[target_index];
@@ -339,7 +352,9 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
          use_filter_n[target_index]) {
           float3 target_loc = world_loc[target_index];
           float3 diff = cur_world_loc - target_loc;
-          float distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
+          float euclidean_distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
+          float normcomp = dot(diff, lightnorm);
+          float distancesq = euclidean_distancesq;// - normcomp*normcomp;
           if (distancesq < 1.0) {
             float3 target_n = n[target_index];
             if (acos(dot(target_n, cur_n)) < angle_threshold) {
@@ -469,7 +484,6 @@ rtDeclareVariable(float3,   Ks, , );
 rtDeclareVariable(float,    phong_exp, , );
 rtDeclareVariable(float3,   Kd, , );
 rtDeclareVariable(float3,   ambient_light_color, , );
-rtBuffer<AreaLight>        lights;
 rtDeclareVariable(rtObject, top_shadower, , );
 rtDeclareVariable(float3, reflectivity, , );
 rtDeclareVariable(float, importance_cutoff, , );
