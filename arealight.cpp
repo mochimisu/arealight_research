@@ -292,15 +292,15 @@ void Arealight::initScene( InitialCameraData& camera_data )
     second_pass_occ_filter_name );
   _context->setRayGenerationProgram( 3, second_occ_filter_program );
 
-  // Omega x f Filter programs
-  std::string first_pass_wxf_filter_name = "wxf_filter_first_pass";
-  Program first_wxf_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-  first_pass_wxf_filter_name );
-  _context->setRayGenerationProgram( 4, first_wxf_filter_program );
-  std::string second_pass_wxf_filter_name = "wxf_filter_second_pass";
-  Program second_wxf_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-  second_pass_wxf_filter_name );
-  _context->setRayGenerationProgram( 5, second_wxf_filter_program );
+  // S1, S2 Filter programs
+  std::string first_pass_s1s2_filter_name = "s1s2_filter_first_pass";
+  Program first_s1s2_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+  first_pass_s1s2_filter_name );
+  _context->setRayGenerationProgram( 4, first_s1s2_filter_program );
+  std::string second_pass_s1s2_filter_name = "s1s2_filter_second_pass";
+  Program second_s1s2_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+  second_pass_s1s2_filter_name );
+  _context->setRayGenerationProgram( 5, second_s1s2_filter_program );
 
   // Display program
   std::string display_name;
@@ -507,8 +507,6 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   //Display
   _context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-
-
 }
 
 

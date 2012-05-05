@@ -440,10 +440,10 @@ __device__ __inline__ void wxfFilterBilateral( float& blurred_wxf_sum,
 
 }
 
-RT_PROGRAM void wxf_filter_first_pass() {
+RT_PROGRAM void s1s2_filter_first_pass() {
 
 }
-RT_PROGRAM void wxf_filter_second_pass() {
+RT_PROGRAM void s1s2_filter_second_pass() {
 
 }
 //
