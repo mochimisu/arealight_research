@@ -1,9 +1,9 @@
 /*
- * arealight.cpp
- * Area Light Filtering
- * Adapted from NVIDIA OptiX Tutorial
- * Brandon Wang, Soham Mehta
- */
+* arealight.cpp
+* Area Light Filtering
+* Adapted from NVIDIA OptiX Tutorial
+* Brandon Wang, Soham Mehta
+*/
 
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>
@@ -44,10 +44,10 @@ static float rand_range(float min, float max)
 
 class Arealight : public SampleScene
 {
-  public:
-    Arealight(const std::string& texture_path)
-      : SampleScene(), _width(1080u), _height(720u), texture_path( texture_path )
-        , _frame_number( 0 ), _keep_trying( 1 )
+public:
+  Arealight(const std::string& texture_path)
+    : SampleScene(), _width(1080u), _height(720u), texture_path( texture_path )
+    , _frame_number( 0 ), _keep_trying( 1 )
   {
     // reserve some space for timings vector
     _timings.reserve(4);
@@ -55,73 +55,73 @@ class Arealight : public SampleScene
     _benchmark_timings.reserve(4);
   }
 
-    // From SampleScene
-    void   initScene( InitialCameraData& camera_data );
-    void   trace( const RayGenCameraData& camera_data );
-    void   doResize( unsigned int width, unsigned int height );
-    void   setDimensions( const unsigned int w, const unsigned int h ) { _width = w; _height = h; }
-    Buffer getOutputBuffer();
+  // From SampleScene
+  void   initScene( InitialCameraData& camera_data );
+  void   trace( const RayGenCameraData& camera_data );
+  void   doResize( unsigned int width, unsigned int height );
+  void   setDimensions( const unsigned int w, const unsigned int h ) { _width = w; _height = h; }
+  Buffer getOutputBuffer();
 
-    virtual bool   keyPressed(unsigned char key, int x, int y);
+  virtual bool   keyPressed(unsigned char key, int x, int y);
 
-  private:
-    std::string texpath( const std::string& base );
-    void resetAccumulation();
-    void createGeometry();
+private:
+  std::string texpath( const std::string& base );
+  void resetAccumulation();
+  void createGeometry();
 
-    bool _accel_cache_loaded;
+  bool _accel_cache_loaded;
 
-    unsigned int  _frame_number;
-    unsigned int  _keep_trying;
+  unsigned int  _frame_number;
+  unsigned int  _keep_trying;
 
-    Buffer       _brdf;
-    Buffer       _vis;
-    GeometryGroup geomgroup;
-    GeometryGroup geomgroup2;
+  Buffer       _brdf;
+  Buffer       _vis;
+  GeometryGroup geomgroup;
+  GeometryGroup geomgroup2;
 
-    Buffer _conv_buffer;
+  Buffer _conv_buffer;
 
-    unsigned int _width;
-    unsigned int _height;
-    std::string   texture_path;
-    std::string  _ptx_path;
+  unsigned int _width;
+  unsigned int _height;
+  std::string   texture_path;
+  std::string  _ptx_path;
 
-    float _env_theta;
-    float _env_phi;
+  float _env_theta;
+  float _env_phi;
 
-    uint _blur_occ;
-    uint _blur_wxf;
-    uint _err_vis;
-    uint _view_mode;
-    uint _lin_sep_blur;
+  uint _blur_occ;
+  uint _blur_wxf;
+  uint _err_vis;
+  uint _view_mode;
+  uint _lin_sep_blur;
 
-    uint _normal_rpp;
-    uint _brute_rpp;
-    uint _max_rpp_pass;
-    uint _show_progressive;
-    int2 _pixel_radius;
-    int2 _pixel_radius_wxf;
+  uint _normal_rpp;
+  uint _brute_rpp;
+  uint _max_rpp_pass;
+  uint _show_progressive;
+  int2 _pixel_radius;
+  int2 _pixel_radius_wxf;
 
-    float _zmin_rpp_scale;
-    bool _converged;
+  float _zmin_rpp_scale;
+  bool _converged;
 
-    LARGE_INTEGER _started_render;
-    LARGE_INTEGER _started_blur;
-    double _perf_freq;
-    std::vector<double> _timings;
+  LARGE_INTEGER _started_render;
+  LARGE_INTEGER _started_blur;
+  double _perf_freq;
+  std::vector<double> _timings;
 
-    Buffer testBuf;
+  Buffer testBuf;
 
-    AreaLight * _env_lights;
-    uint _show_brdf;
-    uint _show_occ;
-    float _sigma;
-    
-    Buffer light_buffer;
+  AreaLight * _env_lights;
+  uint _show_brdf;
+  uint _show_occ;
+  float _sigma;
 
-    int _benchmark_iter;
-    std::vector<double> _benchmark_timings;
-    
+  Buffer light_buffer;
+
+  int _benchmark_iter;
+  std::vector<double> _benchmark_timings;
+
 };
 
 Arealight* _scene;
@@ -206,20 +206,20 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
     0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
     0.003, 0.0 };
-    const float exp_lookup[60] = {1.0000,    0.9048,    0.8187,    0.7408,    
-      0.6703,    0.6065,    0.5488,    0.4966,    0.4493,    0.4066,   
-      0.3679,    0.3329,    0.3012,    0.2725,    0.2466,    0.2231,   
-      0.2019,    0.1827,    0.1653,    0.1496,    0.1353,    0.1225,    
-      0.1108,    0.1003,    0.0907,    0.0821,    0.0743,   0.0672,    
-      0.0608,    0.0550,    0.0498,    0.0450,    0.0408,    0.0369,    
-      0.0334,    0.0302,    0.0273,    0.0247,    0.0224,    0.0202,   
-      0.0183,    0.0166,    0.0150,    0.0136,    0.0123,    0.0111,    
-      0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
-      0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
-      0.0030,    0.0027 };
-    /*
+  const float exp_lookup[60] = {1.0000,    0.9048,    0.8187,    0.7408,    
+    0.6703,    0.6065,    0.5488,    0.4966,    0.4493,    0.4066,   
+    0.3679,    0.3329,    0.3012,    0.2725,    0.2466,    0.2231,   
+    0.2019,    0.1827,    0.1653,    0.1496,    0.1353,    0.1225,    
+    0.1108,    0.1003,    0.0907,    0.0821,    0.0743,   0.0672,    
+    0.0608,    0.0550,    0.0498,    0.0450,    0.0408,    0.0369,    
+    0.0334,    0.0302,    0.0273,    0.0247,    0.0224,    0.0202,   
+    0.0183,    0.0166,    0.0150,    0.0136,    0.0123,    0.0111,    
+    0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
+    0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
+    0.0030,    0.0027 };
+  /*
   for(int i=0; i<65; i++) {
-    lookups[i] = gaussian_lookup[i];
+  lookups[i] = gaussian_lookup[i];
   }*/
   for(int i=0; i<60; i++) {
     lookups[i] = exp_lookup[i];
@@ -266,7 +266,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _show_occ = 1;
   _context["show_occ"]->setUint(_show_occ);
-  
+
 
   _normal_rpp = 4;
   _brute_rpp = 20;
@@ -311,11 +311,11 @@ void Arealight::initScene( InitialCameraData& camera_data )
   // S1, S2 Filter programs
   std::string first_pass_s1s2_filter_name = "s1s2_filter_first_pass";
   Program first_s1s2_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-  first_pass_s1s2_filter_name );
+    first_pass_s1s2_filter_name );
   _context->setRayGenerationProgram( 4, first_s1s2_filter_program );
   std::string second_pass_s1s2_filter_name = "s1s2_filter_second_pass";
   Program second_s1s2_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-  second_pass_s1s2_filter_name );
+    second_pass_s1s2_filter_name );
   _context->setRayGenerationProgram( 5, second_s1s2_filter_program );
 
   // Display program
@@ -368,11 +368,11 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   /*
   AreaLight lights[] = {
-    { make_float3( 0.0, 6.0, -7.0 ),
-    make_float3( 4.0, 6.0, -7.0 ),
-    make_float3( 0.0, 8.82842712474619f, -4.171572875 ),
-    make_float3(1.0f, 1.0f, 1.0f)
-    }
+  { make_float3( 0.0, 6.0, -7.0 ),
+  make_float3( 4.0, 6.0, -7.0 ),
+  make_float3( 0.0, 8.82842712474619f, -4.171572875 ),
+  make_float3(1.0f, 1.0f, 1.0f)
+  }
   };*/
   _env_lights = lights;
   light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
@@ -428,10 +428,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
     60 );                             // vfov
   /*
   camera_data = InitialCameraData( make_float3( 7.0f, 9.2f, 6.0f ), // eye
-      make_float3( 0.0f, 2.0f,  0.0f ), // lookat
-      make_float3( 0.0f, 1.0f,  0.0f ), // up
-      60.0f );                          // vfov
-      */
+  make_float3( 0.0f, 2.0f,  0.0f ), // lookat
+  make_float3( 0.0f, 1.0f,  0.0f ), // up
+  60.0f );                          // vfov
+  */
   _context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
@@ -466,16 +466,16 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _frame_number ++;
   /*
   if (_frame_number == 3) {
-    std::cout << "Matrix of spp" << std:: endl;
-    Buffer spp = _context["spp"]->getBuffer();
-    float* spp_arr = reinterpret_cast<float*>( spp->map() );
-    for(unsigned int j = 0; j < _height; ++j ) {
-      for(unsigned int i = 0; i < _width; ++i ) {
-        std::cout << spp_arr[i+j*_width] <<", ";
-      }
-      std::cout << std::endl;
-    }
-    spp->unmap();
+  std::cout << "Matrix of spp" << std:: endl;
+  Buffer spp = _context["spp"]->getBuffer();
+  float* spp_arr = reinterpret_cast<float*>( spp->map() );
+  for(unsigned int j = 0; j < _height; ++j ) {
+  for(unsigned int i = 0; i < _width; ++i ) {
+  std::cout << spp_arr[i+j*_width] <<", ";
+  }
+  std::cout << std::endl;
+  }
+  spp->unmap();
   }
   */
 
@@ -518,7 +518,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
-  _context->launch( 6, static_cast<unsigned int>(buffer_width),
+    _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   //Filter occlusion
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
@@ -567,9 +567,9 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
 
   Buffer spp;
   switch(key) {
-    case 'U':
-    case 'u':
-      {
+  case 'U':
+  case 'u':
+    {
       float3 d = make_float3(delta,0,0);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
@@ -577,18 +577,18 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       lights[0].v3 += d;
 
       std::cout << "Light now at: " << "\n"
-      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
-      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
-      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+        "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+        "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
         << std::endl;
       light_buffer->unmap();
-      
+
       _camera_changed = true;
       return true;
-      }
-    case 'J':
-    case 'j':
-      {
+    }
+  case 'J':
+  case 'j':
+    {
       float3 d = make_float3(delta,0,0);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
@@ -596,18 +596,18 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       lights[0].v3 -= d;
 
       std::cout << "Light now at: " << "\n"
-      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
-      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
-      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
-      << std::endl;
+        "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+        "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+        "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        << std::endl;
       light_buffer->unmap();
-      
+
       _camera_changed = true;
       return true;
-      }
-    case 'I':
-    case 'i':
-      {
+    }
+  case 'I':
+  case 'i':
+    {
       float3 d = make_float3(0,delta,0);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
@@ -615,18 +615,18 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       lights[0].v3 += d;
 
       std::cout << "Light now at: " << "\n"
-      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
-      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
-      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
-      << std::endl;
+        "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+        "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+        "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        << std::endl;
       light_buffer->unmap();
-      
+
       _camera_changed = true;
       return true;
-      }
-    case 'K':
-    case 'k':
-      {
+    }
+  case 'K':
+  case 'k':
+    {
       float3 d = make_float3(0,delta,0);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
@@ -634,20 +634,20 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       lights[0].v3 -= d;
 
       std::cout << "Light now at: " << "\n"
-      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
-      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
-      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
-      << std::endl;
+        "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+        "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+        "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        << std::endl;
 
       light_buffer->unmap();
-      
+
       _camera_changed = true;
       return true;
-      }
-      
-    case 'O':
-    case 'o':
-      {
+    }
+
+  case 'O':
+  case 'o':
+    {
       float3 d = make_float3(0,0,delta);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 += d;
@@ -655,18 +655,18 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       lights[0].v3 += d;
 
       std::cout << "Light now at: " << "\n"
-      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
-      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
-      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
-      << std::endl;
+        "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+        "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+        "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        << std::endl;
       light_buffer->unmap();
-      
+
       _camera_changed = true;
       return true;
-      }
-    case 'L':
-    case 'l':
-      {
+    }
+  case 'L':
+  case 'l':
+    {
       float3 d = make_float3(0,0,delta);
       AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
       lights[0].v1 -= d;
@@ -674,41 +674,41 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       lights[0].v3 -= d;
 
       std::cout << "Light now at: " << "\n"
-      "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
-      "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
-      "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
-      << std::endl;
+        "v1: " << lights[0].v1.x << "," << lights[0].v1.y << "," << lights[0].v1.z << "\n"
+        "v2: " << lights[0].v2.x << "," << lights[0].v2.y << "," << lights[0].v2.z << "\n"
+        "v3: " << lights[0].v3.x << "," << lights[0].v3.y << "," << lights[0].v3.z
+        << std::endl;
 
       light_buffer->unmap();
-      
+
       _camera_changed = true;
       return true;
-      }
+    }
 
-    case 'M':
-    case 'm':
-      _show_brdf = 1-_show_brdf;
-      _context["show_brdf"]->setUint(_show_brdf);
-      if (_show_brdf)
-        std::cout << "BRDF: On" << std::endl;
-      else
-        std::cout << "BRDF: Off" << std::endl;
-      return true;
-    case 'N':
-    case 'n':
-      _show_occ = 1-_show_occ;
-      _context["show_occ"]->setUint(_show_occ);
-      if (_show_occ)
-        std::cout << "Occlusion Display: On" << std::endl;
-      else
-        std::cout << "Occlusion Display: Off" << std::endl;
-      return true;
+  case 'M':
+  case 'm':
+    _show_brdf = 1-_show_brdf;
+    _context["show_brdf"]->setUint(_show_brdf);
+    if (_show_brdf)
+      std::cout << "BRDF: On" << std::endl;
+    else
+      std::cout << "BRDF: Off" << std::endl;
+    return true;
+  case 'N':
+  case 'n':
+    _show_occ = 1-_show_occ;
+    _context["show_occ"]->setUint(_show_occ);
+    if (_show_occ)
+      std::cout << "Occlusion Display: On" << std::endl;
+    else
+      std::cout << "Occlusion Display: Off" << std::endl;
+    return true;
 
 
 
-    case 'V':
-    case 'v':
-      {
+  case 'V':
+  case 'v':
+    {
 #ifdef SPP_STATS
       std::cout << "SPP stats" << std:: endl;
       //spp = _context["spp"]->getBuffer();
@@ -754,126 +754,126 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       std::cout << "Maximum Theoretical SPP: " << max_spp << std::endl;
       std::cout << "Average Theoretical SPP: " << avg_spp << std::endl;
 #else
-        std::cout << "SPP stats turned off (GPU local buffer)" << std::endl;
+      std::cout << "SPP stats turned off (GPU local buffer)" << std::endl;
 #endif
       return true;
-      }
-    case 'C':
-    case 'c':
-      _sigma += 0.1;
-      _context["light_sigma"]->setFloat(_sigma);
-      std::cout << "Light sigma is now: " << _sigma << std::endl;
-      _camera_changed = true;
-      return true;
-    case 'X':
-    case 'x':
-      _sigma -= 0.1;
-      _context["light_sigma"]->setFloat(_sigma);
-      std::cout << "Light sigma is now: " << _sigma << std::endl;
-      _camera_changed = true;
-      return true;
+    }
+  case 'C':
+  case 'c':
+    _sigma += 0.1;
+    _context["light_sigma"]->setFloat(_sigma);
+    std::cout << "Light sigma is now: " << _sigma << std::endl;
+    _camera_changed = true;
+    return true;
+  case 'X':
+  case 'x':
+    _sigma -= 0.1;
+    _context["light_sigma"]->setFloat(_sigma);
+    std::cout << "Light sigma is now: " << _sigma << std::endl;
+    _camera_changed = true;
+    return true;
 
-    case 'A':
-    case 'a':
-      std::cout << _frame_number << " frames." << std::endl;
-      return true;
-    case 'B':
-    case 'b':
-      _blur_occ = 1-_blur_occ;
-      _context["blur_occ"]->setUint(_blur_occ);
-      if (_blur_occ)
-        std::cout << "Blur: On" << std::endl;
-      else
-        std::cout << "Blur: Off" << std::endl;
-      return true;
+  case 'A':
+  case 'a':
+    std::cout << _frame_number << " frames." << std::endl;
+    return true;
+  case 'B':
+  case 'b':
+    _blur_occ = 1-_blur_occ;
+    _context["blur_occ"]->setUint(_blur_occ);
+    if (_blur_occ)
+      std::cout << "Blur: On" << std::endl;
+    else
+      std::cout << "Blur: Off" << std::endl;
+    return true;
 
-    case 'H':
-    case 'h':
-      _blur_wxf = 1-_blur_wxf;
-      _context["blur_wxf"]->setUint(_blur_wxf);
-      if (_blur_wxf)
-        std::cout << "Blur Omega x f: On" << std::endl;
-      else
-        std::cout << "Blur Omega x f: Off" << std::endl;
-      return true;
-    case 'E':
-    case 'e':
-      _err_vis = 1-_err_vis;
-      _context["err_vis"]->setUint(_err_vis);
-      if (_err_vis)
-        std::cout << "Err vis: On" << std::endl;
-      else
-        std::cout << "Err vis: Off" << std::endl;
-      return true;
-    case 'Z':
-    case 'z':
-      _view_mode = (_view_mode+1)%9;
-      _context["view_mode"]->setUint(_view_mode);
-      switch(_view_mode) {
-      case 0:
-        std::cout << "View mode: Normal" << std::endl;
-        break;
-      case 1:
-        std::cout << "View mode: Occlusion Only" << std::endl;
-        break;
-      case 2:
-        std::cout << "View mode: Scale" << std::endl;
-        break;
-      case 3:
-        std::cout << "View mode: Current SPP" << std::endl;
-        break;
-      case 4:
-        std::cout << "View mode: Theoretical SPP" << std::endl;
-        break;
-      case 5:
-        std::cout << "Use filter (normals)" << std::endl;
-        break;
-      case 6:
-        std::cout << "Use filter (unoccluded)" << std::endl;
-        break;
-      case 7:
-        std::cout << "View unconverged pixels" << std::endl;
-        break;
-      default:
-        std::cout << "View mode: Unknown" << std::endl;
-        break;
-      }
-      return true;
+  case 'H':
+  case 'h':
+    _blur_wxf = 1-_blur_wxf;
+    _context["blur_wxf"]->setUint(_blur_wxf);
+    if (_blur_wxf)
+      std::cout << "Blur Omega x f: On" << std::endl;
+    else
+      std::cout << "Blur Omega x f: Off" << std::endl;
+    return true;
+  case 'E':
+  case 'e':
+    _err_vis = 1-_err_vis;
+    _context["err_vis"]->setUint(_err_vis);
+    if (_err_vis)
+      std::cout << "Err vis: On" << std::endl;
+    else
+      std::cout << "Err vis: Off" << std::endl;
+    return true;
+  case 'Z':
+  case 'z':
+    _view_mode = (_view_mode+1)%9;
+    _context["view_mode"]->setUint(_view_mode);
+    switch(_view_mode) {
+    case 0:
+      std::cout << "View mode: Normal" << std::endl;
+      break;
+    case 1:
+      std::cout << "View mode: Occlusion Only" << std::endl;
+      break;
+    case 2:
+      std::cout << "View mode: Scale" << std::endl;
+      break;
+    case 3:
+      std::cout << "View mode: Current SPP" << std::endl;
+      break;
+    case 4:
+      std::cout << "View mode: Theoretical SPP" << std::endl;
+      break;
+    case 5:
+      std::cout << "Use filter (normals)" << std::endl;
+      break;
+    case 6:
+      std::cout << "Use filter (unoccluded)" << std::endl;
+      break;
+    case 7:
+      std::cout << "View unconverged pixels" << std::endl;
+      break;
+    default:
+      std::cout << "View mode: Unknown" << std::endl;
+      break;
+    }
+    return true;
 
-    case '\'':
-      _lin_sep_blur = 1-_lin_sep_blur;
-      _context["lin_sep_blur"]->setUint(_lin_sep_blur);
-      if (_lin_sep_blur)
-        std::cout << "Linearly Separable Blur: On" << std::endl;
-      else
-        std::cout << "Linearly Separable Blur: Off" << std::endl;
+  case '\'':
+    _lin_sep_blur = 1-_lin_sep_blur;
+    _context["lin_sep_blur"]->setUint(_lin_sep_blur);
+    if (_lin_sep_blur)
+      std::cout << "Linearly Separable Blur: On" << std::endl;
+    else
+      std::cout << "Linearly Separable Blur: Off" << std::endl;
+    return true;
+  case 'P':
+  case 'p':
+    _show_progressive = 1-_show_progressive;
+    _context["show_progressive"]->setUint(_show_progressive);
+    if (_show_progressive)
+      std::cout << "Blur progressive: On" << std::endl;
+    else
+      std::cout << "Blur progressive: Off" << std::endl;
+    return true;
+  case '.':
+    if(_pixel_radius.x > 1000)
       return true;
-    case 'P':
-    case 'p':
-      _show_progressive = 1-_show_progressive;
-      _context["show_progressive"]->setUint(_show_progressive);
-      if (_show_progressive)
-        std::cout << "Blur progressive: On" << std::endl;
-      else
-        std::cout << "Blur progressive: Off" << std::endl;
+    _pixel_radius += make_int2(1,1);
+    _context["pixel_radius"]->setInt(_pixel_radius);
+    std::cout << "Pixel radius now: " << _pixel_radius.x << "," << _pixel_radius.y << std::endl;
+    return true;
+  case ',':
+    if (_pixel_radius.x < 2)
       return true;
-    case '.':
-      if(_pixel_radius.x > 1000)
-        return true;
-      _pixel_radius += make_int2(1,1);
-      _context["pixel_radius"]->setInt(_pixel_radius);
-      std::cout << "Pixel radius now: " << _pixel_radius.x << "," << _pixel_radius.y << std::endl;
-      return true;
-    case ',':
-      if (_pixel_radius.x < 2)
-        return true;
-      _pixel_radius -= make_int2(1,1);
-      _context["pixel_radius"]->setInt(_pixel_radius);
-      std::cout << "Pixel radius now: " << _pixel_radius.x << "," << _pixel_radius.y << std::endl;
-      return true;
-    case 'S':
-    case 's':
-      {
+    _pixel_radius -= make_int2(1,1);
+    _context["pixel_radius"]->setInt(_pixel_radius);
+    std::cout << "Pixel radius now: " << _pixel_radius.x << "," << _pixel_radius.y << std::endl;
+    return true;
+  case 'S':
+  case 's':
+    {
       std::stringstream fname;
       fname << "output_";
       fname << std::setw(7) << std::setfill('0') << output_num;
@@ -883,13 +883,13 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       output_num++;
       std::cout << "Saved file" << std::endl;
       return true;
-      }
-    case 'Y':
-    case 'y':
+    }
+  case 'Y':
+  case 'y':
 
-      return true;
+    return true;
 
-        /*_context["eye"]->setFloat( camera_data.eye );
+    /*_context["eye"]->setFloat( camera_data.eye );
     _context["U"]->setFloat( camera_data.U );
     _context["V"]->setFloat( camera_data.V );
     _context["W"]->setFloat( camera_data.W ); */
@@ -1008,7 +1008,7 @@ void Arealight::createGeometry()
   grid2_xform_m[15] = 1.0;
 
 
-  
+
   Matrix4x4 grid3_xform = Matrix4x4::identity();
   float *grid3_xform_m = grid3_xform.getData();
   grid3_xform_m[0] = 0.109836;
@@ -1227,7 +1227,7 @@ void Arealight::createGeometry()
   sphere->setPrimitiveCount( 1u );
   sphere["sphere"]->setFloat( 0, 5, 0, 4 );
 
-  
+
 
 
   // Floor geometry
@@ -1335,7 +1335,7 @@ void Arealight::createGeometry()
     glass_matl["shadow_attenuation"]->setFloat( 0.4f, 0.7f, 0.4f );
   }
 
-  
+
   // Create box
   Geometry lightParallelogram = _context->createGeometry();
   lightParallelogram->setPrimitiveCount( 1u );
@@ -1356,7 +1356,7 @@ void Arealight::createGeometry()
   lightParallelogram["v2"]->setFloat( lv2 );
   lightParallelogram["anchor"]->setFloat( lanchor );
 
-  
+
   //Load OBJ
   geomgroup = _context->createGeometryGroup();
   geomgroup2 = _context->createGeometryGroup();
@@ -1395,7 +1395,7 @@ void Arealight::createGeometry()
 
   loader = new ObjLoader( texpath(obj_file).c_str(), _context, geomgroup, mat );
   loader->load(obj_xform);  
-  
+
   //ObjLoader * loader2 = new ObjLoader( texpath(obj_file2).c_str(), _context, geomgroup2, mat );
   //loader2->load(obj_xform2);  
 
@@ -1419,17 +1419,17 @@ void Arealight::createGeometry()
   int ct2 = geomgroup2->getChildCount();
   geomgroup->setChildCount( ct + ct2 );
   for(int i=0; i<ct2; i++)
-      geomgroup->setChild( ct+i, geomgroup2->getChild(i) );
+  geomgroup->setChild( ct+i, geomgroup2->getChild(i) );
   //geomgroup->setChild( ct+1, gis[3] );
   */
-  
+
   /*
   GeometryGroup shadowergroup = _context->createGeometryGroup();
   shadowergroup->setChildCount( ct + 1 );
   for(int i=0; i<ct+1; i++) {
-    shadowergroup->setChild(i,geomgroup->getChild(i));
+  shadowergroup->setChild(i,geomgroup->getChild(i));
   }
-  
+
   shadowergroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
   */
@@ -1437,18 +1437,18 @@ void Arealight::createGeometry()
 
   _context["top_object"]->set( geomgroup );
   _context["top_shadower"]->set( geomgroup );
-  
 
 
 
-/*
+
+  /*
   GeometryGroup geometrygroup = _context->createGeometryGroup();
   geometrygroup->setChildCount( static_cast<unsigned int>(gis.size()) );
   geometrygroup->setChild( 0, gis[0] );
   geometrygroup->setChild( 1, gis[1] );
   geometrygroup->setChild( 2, gis[2] );
   if(chull.get())
-    geometrygroup->setChild( 3, gis[3] );
+  geometrygroup->setChild( 3, gis[3] );
   geometrygroup->setAcceleration( _context->createAcceleration("NoAccel","NoAccel") );
 
   _context["top_object"]->set( geometrygroup );
