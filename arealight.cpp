@@ -188,11 +188,11 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #endif
   _context["spp_cur"]->set( spp_cur );
 
-  Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
+  Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT2, _width, _height );
   _context["slope"]->set( slope );
 
   // gauss values
-  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 60); //65);
+  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
@@ -217,14 +217,14 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
     0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
     0.0030,    0.0027 };
-  /*
+  
   for(int i=0; i<65; i++) {
   lookups[i] = gaussian_lookup[i];
-  }*/
+  }/*
   for(int i=0; i<60; i++) {
     lookups[i] = exp_lookup[i];
   }
-
+  */
   gauss_lookup->unmap();
 
   // world space buffer
@@ -272,8 +272,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   _normal_rpp = 4;
-  _brute_rpp = 20;
-  _max_rpp_pass = 10;
+  _brute_rpp = 200;
+  _max_rpp_pass = 100;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -352,23 +352,28 @@ void Arealight::initScene( InitialCameraData& camera_data )
   miss_name = "miss";
   _context->setMissProgram( 0, _context->createProgramFromPTXFile( _ptx_path, miss_name ) );
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
-  _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
+  _context["bg_color"]->setFloat( make_float3(0) ); //make_float3( 0.34f, 0.55f, 0.85f ) );
 
 #if 1
   // grids2
+  
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(1.5, 16, 8);
   float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
-
+  /*
+  float3 pos = make_float3(-4.5, 16, 8);
+  float3 pos1 = make_float3(3.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 17, 7);
+  */
   float3 axis1 = pos1-pos;
   float3 axis2 = pos2-pos;
 
   float3 norm = cross(axis1,axis2);
 
   AreaLight lights[] = {
-    { make_float3( -4.5, 16, 8 ),
-    make_float3( 1.5, 16, 8 ),
-    make_float3( -4.5, 21.8284, 3.8284 ),
+    { pos,
+    pos1,
+    pos2,
     make_float3(1.0f, 1.0f, 1.0f)
     }
   };
@@ -377,7 +382,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["lightnorm"]->setFloat(normed_norm);
   _sigma = sqrt(length(norm)/4.0f);
   std::cout << "Sigma: " << _sigma << std::endl;
-  //_sigma = 0.75;
+  _sigma = 0.75;
+
   _context["light_sigma"]->setFloat(_sigma);
 
   /*
@@ -402,8 +408,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( 5.0f, 3.0f, -1.0f ), // eye
-    make_float3( 0.0f, 0.0f,  0.0f ), // lookat
+  camera_data = InitialCameraData( make_float3( -4.5f, 2.5f, 5.5f ), // eye
+  //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
+    make_float3( 0.0f, 0.5f,  0.0f ), // lookat
+    //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
 
@@ -536,8 +544,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
 
   //Resample
-#if 1
-  num_resample = 20;
+#if 0
+  num_resample = 2000;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
@@ -547,7 +555,32 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+
   //Display
+  if (_view_mode) {
+    if (_view_mode == 2) {
+      //scale
+      Buffer slope = _context["slope"]->getBuffer();
+      float min_s2 = 100000000.0;
+      float max_s2 = 0.0;
+      float2* slope_arr = reinterpret_cast<float2*>( slope->map() );
+      for(unsigned int j = 0; j < _height; ++j ) {
+        for(unsigned int i = 0; i < _width; ++i ) {
+          //std::cout << spp_arr[i+j*_width] <<", ";
+          float cur_s2_val = slope_arr[i+j*_width].y;
+          if (cur_s2_val < 9999.0 && cur_s2_val > 0.01) {
+            min_s2 = min(min_s2,cur_s2_val);
+            max_s2 = max(max_s2,cur_s2_val);
+          }
+        }
+        //std::cout << std::endl;
+      }
+      _context["max_disp_val"]->setFloat(max_s2);
+      _context["min_disp_val"]->setFloat(min_s2);
+      std::cout << "max,min s2: " << max_s2 << ", " << min_s2 << std::endl;
+      slope->unmap();
+    }
+  }
   _context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 }
@@ -932,6 +965,10 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
 //grids2
 void Arealight::createGeometry()
 {
+  //Intersection programs
+  Program closest_hit = _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3");
+  Program any_hit = _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow");
+
   //Make some temp geomgroups
   GeometryGroup floor_geom_group = _context->createGeometryGroup();
   GeometryGroup grid1_geom_group = _context->createGeometryGroup();
@@ -940,8 +977,8 @@ void Arealight::createGeometry()
 
   //Set some materials
   Material floor_mat = _context->createMaterial();
-  floor_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  floor_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  floor_mat->setClosestHitProgram(0, closest_hit);
+  floor_mat->setAnyHitProgram(1, any_hit);
   floor_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
   floor_mat["Kd"]->setFloat( 0.87402f, 0.87402f, 0.87402f );
   floor_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -951,8 +988,8 @@ void Arealight::createGeometry()
   floor_mat["obj_id"]->setInt(10);
 
   Material grid1_mat = _context->createMaterial();
-  grid1_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  grid1_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  grid1_mat->setClosestHitProgram(0, closest_hit);
+  grid1_mat->setAnyHitProgram(1, any_hit);
   grid1_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
   grid1_mat["Kd"]->setFloat( 0.72f, 0.100741f, 0.09848f );
   grid1_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -962,8 +999,8 @@ void Arealight::createGeometry()
   grid1_mat["obj_id"]->setInt(11);
 
   Material grid2_mat = _context->createMaterial();
-  grid2_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  grid2_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  grid2_mat->setClosestHitProgram(0, closest_hit);
+  grid2_mat->setAnyHitProgram(1, any_hit);
   grid2_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
   grid2_mat["Kd"]->setFloat( 0.0885402f, 0.77f, 0.08316f );
   grid2_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -973,10 +1010,10 @@ void Arealight::createGeometry()
   grid2_mat["obj_id"]->setInt(12);
 
   Material grid3_mat = _context->createMaterial();
-  grid3_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  grid3_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  grid3_mat->setClosestHitProgram(0, closest_hit);
+  grid3_mat->setAnyHitProgram(1, any_hit);
   grid3_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  grid2_mat["Kd"]->setFloat( 0.123915f, 0.192999f, 0.751f );
+  grid3_mat["Kd"]->setFloat( 0.123915f, 0.192999f, 0.751f );
   grid3_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   grid3_mat["phong_exp"]->setFloat( 100.0f );
   grid3_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -1060,33 +1097,36 @@ void Arealight::createGeometry()
   floor_loader->load(floor_xform);
   ObjLoader * grid1_loader = new ObjLoader( texpath("grids2/grid1.obj").c_str(), _context, grid1_geom_group, grid1_mat );
   grid1_loader->load(grid1_xform);
-  ObjLoader * grid2_loader = new ObjLoader( texpath("grids2/grid2.obj").c_str(), _context, grid2_geom_group, grid2_mat );
-  grid2_loader->load(grid2_xform);
   ObjLoader * grid3_loader = new ObjLoader( texpath("grids2/grid3.obj").c_str(), _context, grid3_geom_group, grid3_mat );
   grid3_loader->load(grid3_xform);
+  ObjLoader * grid2_loader = new ObjLoader( texpath("grids2/grid2.obj").c_str(), _context, grid2_geom_group, grid2_mat );
+  grid2_loader->load(grid2_xform);
 
 
   //Make one big geom group
   GeometryGroup geom_group = _context->createGeometryGroup();
 
-  geom_group->setChildCount(3);
-  geom_group->setChild( 0, floor_geom_group->getChild(0) );
-  geom_group->setChild( 1, grid1_geom_group->getChild(0) );
-  geom_group->setChild( 2, grid2_geom_group->getChild(0) );
+  geom_group->setChildCount(0);
+  //geom_group->setChild( 0, floor_geom_group->getChild(0) );
+  //geom_group->setChild( 1, grid1_geom_group->getChild(0) );
+  //geom_group->setChild( 2, grid2_geom_group->getChild(0) );
   //geom_group->setChild( 3, grid2_geom_group->getChild(0) );
+  //geom_group->setChild( 3, grid3_geom_group->getChild(0) );
 
   //appendGeomGroup(geom_group, floor_geom_group);
   std::cout << "asdf" << std::endl;
-  std::cout << floor_geom_group->getChildCount() << std::endl;
   std::cout << geom_group->getChildCount() << std::endl;
-  //appendGeomGroup(geom_group, grid1_geom_group);
-  //appendGeomGroup(geom_group, grid2_geom_group);
-  //appendGeomGroup(geom_group, grid3_geom_group);
+  appendGeomGroup(geom_group, floor_geom_group);
+  appendGeomGroup(geom_group, grid1_geom_group);
+  appendGeomGroup(geom_group, grid2_geom_group);
+  appendGeomGroup(geom_group, grid3_geom_group);
   //geom_group->setChild(ct, global);
+  //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
   geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
-  Acceleration accl = floor_geom_group->getAcceleration();
-  std::cout << accl->getBuilder() << std::endl;
-  //geom_group->setAcceleration( grid1_geom_group->getAcceleration() );
+  //geom_group->setAcceleration( _context->createAcceleration("TriangleKdTree", "KdTree") );
+  //Acceleration accl = floor_geom_group->getAcceleration();
+  //std::cout << accl->getBuilder() << std::endl;
+  //geom_group->setAcceleration( grid3_geom_group->getAcceleration() );
 
   //Set the geom group
   _context["top_object"]->set( geom_group );

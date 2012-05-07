@@ -92,20 +92,20 @@ __device__ __inline__ float3 heatMap(float val) {
 }
 
 rtBuffer<float, 1>              gaussian_lookup;
-/*
+
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
-float sample = distsq*wxf*wxf;
-if (sample > 0.9999) {
-return 0.0;
+  float sample = distsq*wxf*wxf;
+  if (sample > 0.9999) {
+    return 0.0;
+  }
+  float scaled = sample*64;
+  int index = (int) scaled;
+  float weight = scaled - index;
+  return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
-float scaled = sample*64;
-int index = (int) scaled;
-float weight = scaled - index;
-return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
-}
-*/
 
+/*
 __device__ __inline__ float gaussFilter(float dist_sq, float wxf)
 {
   float sample = dist_sq*wxf*wxf/2;
@@ -118,6 +118,7 @@ __device__ __inline__ float gaussFilter(float dist_sq, float wxf)
   //now return exp(-0.5*dist_sq/sigma_sq)
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
+*/
 
 //marsaglia polar method
 __device__ __inline__ float2 randomGauss(float center, float std_dev, float2 sample)
@@ -176,6 +177,9 @@ rtDeclareVariable(int2,           pixel_radius_wxf, , );
 
 rtDeclareVariable(uint,           show_brdf, , );
 rtDeclareVariable(uint,           show_occ, , );
+
+rtDeclareVariable(float,          max_disp_val, , );
+rtDeclareVariable(float,          min_disp_val, , );
 
 __device__ __inline__ float computeSpp( float t_hit,
   float s1, float s2, float wxf ) {
@@ -247,7 +251,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 
   spp_cur[launch_index] = current_spp;
   //theoretical_spp = 100000.0;
-  spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
+  spp[launch_index] = min(4*theoretical_spp, (float) brute_rpp * brute_rpp);
   spp_filter1d[launch_index] = spp[launch_index];
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
@@ -319,18 +323,20 @@ RT_PROGRAM void display_camera() {
     if (view_mode == 1)
       //Occlusion only
       output_buffer[launch_index] = make_color( make_float3(blurred_vis) );
-    if (view_mode == 2) 
+    if (view_mode == 2)  {
       //Scale
       //output_buffer[launch_index] = make_color( make_float3(scale) );
-      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma)*5.0) );
+      float min_wxf = computeWxf(min_disp_val);
+      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma) * 1.0) );
+    }
     if (view_mode == 3) 
       //Current SPP
       //output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
-      output_buffer[launch_index] = make_color( heatMap(spp_cur[launch_index] / 100.0 ) );
+      output_buffer[launch_index] = make_color( heatMap(spp_cur[launch_index] / 1200.0 ) );
     if (view_mode == 4) 
       //Theoretical SPP
       //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
-      output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 100.0 ) );
+      output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 1200.0 ) );
     if (view_mode == 5)
       //Use filter (normals)
       output_buffer[launch_index] = make_color( make_float3(use_filter_n[launch_index])  );
@@ -355,19 +361,9 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
   float& sum_weight, const optix::float3& cur_world_loc, float3 cur_n,
   float wxf, int i, int j, const optix::size_t2& buf_size, 
   unsigned int pass ) {
-    const float dist_scale_threshold = 1000000.00f;
+    const float dist_scale_threshold = 10.0f;
     const float dist_threshold = 1.0f;
     const float angle_threshold = 20.0f * M_PI/180.0f;
-
-    //TODO: precompute light normal
-    /*
-    AreaLight light = lights[0];
-    float3 lx = light.v2 - light.v1;
-    float3 ly = light.v3 - light.v1;
-    float3 lo = light.v1;
-    float3 ln = cross(lx,ly);
-    */
-
 
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
       uint2 target_index = make_uint2(i,j);
@@ -454,6 +450,8 @@ RT_PROGRAM void occlusion_filter_second_pass() {
 
     if (sum_weight > 0.00001f)
       blurred_vis = blurred_vis_sum / sum_weight;
+    else 
+      blurred_vis = cur_vis.x;
   }
 
   vis[launch_index].x = blurred_vis;
@@ -488,7 +486,10 @@ RT_PROGRAM void spp_filter_second_pass() {
   for (int i = -5; i < 5; i++) {
     sppFilterMax(cur_spp, launch_index.x, launch_index.y + i, buf_size, 1);
   }
-  spp[launch_index] = cur_spp;
+  //if (cur_spp > 1) 
+  //  use_filter_occ[launch_index] |= 1;
+
+  //spp[launch_index] = cur_spp;
   return;}
 __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, unsigned int i,
   unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {  float2 output_slope = cur_slope;
@@ -507,7 +508,6 @@ __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, unsigned int i,
     output_slope.x = max(cur_slope.x, target_slope.x);
     output_slope.y = min(cur_slope.y, target_slope.y);
   }
-
   if (pass == 0)
     use_filter_occ_filter1d[launch_index] |= use_filter;
   else
@@ -531,6 +531,56 @@ RT_PROGRAM void s1s2_filter_second_pass() {
   for (int i = -5; i < 5; i++) {
     cur_slope = s1s2FilterMaxMin(cur_slope, launch_index.x, launch_index.y + i, buf_size, 1);
   }
+  slope[launch_index] = cur_slope;
+  return;
+}
+__device__ __inline__ float2 s1s2FilterGauss(float2& cur_slope, 
+  float2& cur_slope_sum, float2& cur_wieght_sum, unsigned int i,
+  unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {    float2 output_slope = cur_slope;
+    if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
+      uint2 target_index = make_uint2(i,j);
+      float2 target_slope;
+      if (pass == 0) {
+        target_slope = slope[target_index];
+      }
+      else {
+        target_slope = slope_filter1d[target_index];
+      }
+      output_slope.x = max(cur_slope.x, target_slope.x);
+      output_slope.y = min(cur_slope.y, target_slope.y);
+    }
+
+    return output_slope;
+}
+
+
+RT_PROGRAM void s1s2_filter_third_pass() {
+  float2 cur_slope = slope[launch_index];
+  size_t2 buf_size = slope.size();
+  float2 cur_slope_sum = make_float2(0.0);
+  float2 cur_weight_sum = make_float2(0.0);
+  for (int i = -5; i < 5; i++) {
+     s1s2FilterGauss(cur_slope, cur_slope_sum, cur_weight_sum, launch_index.x + i, launch_index.y, buf_size, 0);
+  }
+  if (cur_weight_sum.x > 0.001f)
+    cur_slope.x = cur_slope_sum.x / cur_weight_sum.x;
+  if (cur_weight_sum.y > 0.001f)
+    cur_slope.y = cur_slope_sum.y / cur_weight_sum.y;
+  slope_filter1d[launch_index] = cur_slope;
+  return;
+}
+
+RT_PROGRAM void s1s2_filter_fourth_pass() {  float2 cur_slope = slope_filter1d[launch_index];
+  size_t2 buf_size = slope.size();
+  float2 cur_slope_sum = make_float2(0.0);
+  float2 cur_weight_sum = make_float2(0.0);
+  for (int i = -5; i < 5; i++) {
+    cur_slope = s1s2FilterGauss(cur_slope, cur_slope_sum, cur_weight_sum, launch_index.x, launch_index.y + i, buf_size, 1);
+  }
+  if (cur_weight_sum.x > 0.001f)
+    cur_slope.x = cur_slope_sum.x / cur_weight_sum.x;
+  if (cur_weight_sum.y > 0.001f)
+    cur_slope.y = cur_slope_sum.y / cur_weight_sum.y;
   //slope[launch_index] = cur_slope;
   return;
 }
