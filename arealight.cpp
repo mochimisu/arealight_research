@@ -136,7 +136,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // context 
   _context->setRayTypeCount( 2 );
-  _context->setEntryPointCount( 7 );
+  _context->setEntryPointCount( 9 );
   _context->setStackSize( 8000 );
 
   _context["max_depth"]->setInt(100);
@@ -246,6 +246,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer s1s2_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["slope_filter1d"]->set( s1s2_blur1d );
 
+  Buffer spp_blur1d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["spp_filter1d"]->set( spp_blur1d );
+
   Buffer dist_to_light = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_to_light"]->set( dist_to_light );
 
@@ -318,6 +321,17 @@ void Arealight::initScene( InitialCameraData& camera_data )
     second_pass_s1s2_filter_name );
   _context->setRayGenerationProgram( 5, second_s1s2_filter_program );
 
+  // SPP Filter programs
+  std::string first_pass_spp_filter_name = "spp_filter_first_pass";
+  Program first_spp_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+  first_pass_spp_filter_name );
+  _context->setRayGenerationProgram( 7, first_spp_filter_program );
+  std::string second_pass_spp_filter_name = "spp_filter_second_pass";
+  Program second_spp_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
+  second_pass_spp_filter_name );
+  _context->setRayGenerationProgram( 8, second_spp_filter_program );
+
+
   // Display program
   std::string display_name;
   display_name = "display_camera";
@@ -342,15 +356,15 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 #if 1
   // grids2
-  /*
+  
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(1.5, 16, 8);
   float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
-  */
+  /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
   float3 pos2 = make_float3(-4.5, 17, 7);
-  
+  */
   float3 axis1 = pos1-pos;
   float3 axis2 = pos2-pos;
 
@@ -521,6 +535,13 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+
+  //Filter spp
+  _context->launch( 7, static_cast<unsigned int>(buffer_width),
+  static_cast<unsigned int>(buffer_height) );
+  _context->launch( 8, static_cast<unsigned int>(buffer_width),
+  static_cast<unsigned int>(buffer_height) );
+
 
   //Resample
 #if 0
