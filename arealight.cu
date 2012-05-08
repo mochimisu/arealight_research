@@ -505,8 +505,10 @@ __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt,
       target_slope = slope_filter1d[target_index];
       use_filter = use_filter_occ_filter1d[target_index];
     }
-    output_slope.x = max(cur_slope.x, target_slope.x);
-    output_slope.y = min(cur_slope.y, target_slope.y);
+    if (use_filter) {
+      output_slope.x = max(cur_slope.x, target_slope.x);
+      output_slope.y = min(cur_slope.y, target_slope.y);
+    }
   }
   use_filt |= use_filter;
   return output_slope;
