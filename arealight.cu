@@ -463,17 +463,22 @@ __device__ __inline__ float2 s1s2FilterAvg(float2& cur_slope, bool& use_filter,
   unsigned int i, unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {  if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
     uint2 target_index = make_uint2(i,j);
     float2 target_slope;
+    bool cur_use_filter;
     if (pass == 0) {
       target_slope = slope[target_index];
-      use_filter |= use_filter_occ[target_index];
+
+      cur_use_filter = use_filter_occ[target_index];
     }
     else {
       target_slope = slope_filter1d[target_index];
-      use_filter |= use_filter_occ_filter1d[target_index];
+      cur_use_filter = use_filter_occ_filter1d[target_index];
     }
-    cur_sum.x += target_slope.x;
-    cur_sum.y += target_slope.y;
-    cur_weight += 1;
+    use_filter |= cur_use_filter;
+    if (cur_use_filter) {
+      cur_sum.x += target_slope.x;
+      cur_sum.y += target_slope.y;
+      cur_weight += 1;
+    }
   }
 }
 
@@ -486,9 +491,14 @@ RT_PROGRAM void s1s2_filter_first_pass() {
   for (int i = -5; i < 5; i++) {
     s1s2FilterAvg(cur_slope, use_filter, cur_sum, cur_weight, launch_index.x + i, launch_index.y, buf_size, 0);
   }
-  slope_filter1d[launch_index] = cur_sum / cur_weight;
-  use_filter_occ_filter1d[launch_index] = use_filter;
+  if (cur_weight > 0.01) {
+    slope_filter1d[launch_index] = cur_sum / cur_weight;
+    use_filter_occ_filter1d[launch_index] = use_filter;
+  } else {
+    use_filter_occ_filter1d[launch_index] = false;
+  }
   return;
+
 }
 
 RT_PROGRAM void s1s2_filter_second_pass() {
@@ -500,7 +510,7 @@ RT_PROGRAM void s1s2_filter_second_pass() {
   for (int i = -5; i < 5; i++) {
     cur_slope = s1s2FilterAvg(cur_slope, use_filter, cur_sum, cur_weight, launch_index.x, launch_index.y + i, buf_size, 1);
   }
-  if (!use_filter_occ[launch_index] && use_filter) {
+  if (!use_filter_occ[launch_index] && use_filter && cur_weight > 0.01) {
     use_filter_occ[launch_index] = use_filter;
     slope[launch_index] = cur_sum / cur_weight;
   }
