@@ -272,7 +272,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 4;
   _brute_rpp = 200;
-  _max_rpp_pass = 100;
+  _max_rpp_pass = 20;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -354,6 +354,73 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
 #if 1
+  
+  // tentacles2
+  
+  float3 pos = make_float3(-4.5, 16, 8);
+  float3 pos1 = make_float3(1.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
+  /*
+  float3 pos = make_float3(-4.5, 16, 8);
+  float3 pos1 = make_float3(3.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 17, 7);
+  */
+  float3 axis1 = pos1-pos;
+  float3 axis2 = pos2-pos;
+
+  float3 norm = cross(axis1,axis2);
+
+  AreaLight lights[] = {
+    { pos,
+    pos1,
+    pos2,
+    make_float3(1.0f, 1.0f, 1.0f)
+    }
+  };
+
+  float3 normed_norm = normalize(norm);
+  _context["lightnorm"]->setFloat(normed_norm);
+  _sigma = sqrt(length(norm)/4.0f);
+  std::cout << "Sigma: " << _sigma << std::endl;
+  _sigma = 0.35;
+
+  _context["light_sigma"]->setFloat(_sigma);
+
+  /*
+  AreaLight lights[] = {
+  { make_float3( 0.0, 6.0, -7.0 ),
+  make_float3( 4.0, 6.0, -7.0 ),
+  make_float3( 0.0, 8.82842712474619f, -4.171572875 ),
+  make_float3(1.0f, 1.0f, 1.0f)
+  }
+  };*/
+  _env_lights = lights;
+  light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
+  light_buffer->setFormat(RT_FORMAT_USER);
+  light_buffer->setElementSize(sizeof(AreaLight));
+  //light_buffer->setSize( sizeof(_env_lights)/sizeof(_env_lights[0]) );
+  //memcpy(light_buffer->map(), _env_lights, sizeof(_env_lights));
+  light_buffer->setSize( sizeof(lights)/sizeof(lights[0]) );
+  memcpy(light_buffer->map(), lights, sizeof(lights));
+  light_buffer->unmap();
+
+  _context["lights"]->set(light_buffer);
+
+
+  // Set up camera
+  camera_data = InitialCameraData( make_float3( 0.1, 3.1, 0.1 ), // eye
+  //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
+    make_float3( -8.0f, 0.5f,  -5.0f ), // lookat
+    //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
+    make_float3( 0.0f, 1.0f,  0.0f ), // up
+    60 );                             // vfov
+
+  _context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+  _context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+  _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+  _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+#endif
+#if 0
   // grids2
   
   float3 pos = make_float3(-4.5, 16, 8);
@@ -419,7 +486,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 
-#else
+#endif
+#if 0
   // balance
   // Area lights
   AreaLight lights[] = {
@@ -544,7 +612,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   //Resample
 #if 0
-  num_resample = 2000;
+  num_resample = 10;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
@@ -961,6 +1029,90 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
 }
 
 #if 1
+//tentacles
+void Arealight::createGeometry()
+{
+  //Make some temp geomgroups
+  GeometryGroup ground_geom_group = _context->createGeometryGroup();
+  GeometryGroup tentacles_geom_group = _context->createGeometryGroup();
+  GeometryGroup rock_geom_group = _context->createGeometryGroup();
+
+  //Set some materials
+  Material ground_mat = _context->createMaterial();
+  ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  ground_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["Kd"]->setFloat( 1,0.9,0.4 );
+  ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["phong_exp"]->setFloat( 100.0f );
+  ground_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  ground_mat["obj_id"]->setInt(10);
+
+  Material tentacles_mat = _context->createMaterial();
+  tentacles_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  tentacles_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  tentacles_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tentacles_mat["Kd"]->setFloat( 0.5, 0.15, 0.04 );
+  tentacles_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tentacles_mat["phong_exp"]->setFloat( 100.0f );
+  tentacles_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tentacles_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  tentacles_mat["obj_id"]->setInt(11);
+
+  Material rock_mat = _context->createMaterial();
+  rock_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  rock_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  rock_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  rock_mat["Kd"]->setFloat( 0.7,0.7,0.7 );
+  rock_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  rock_mat["phong_exp"]->setFloat( 100.0f );
+  rock_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  rock_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  rock_mat["obj_id"]->setInt(12);
+
+
+  //Transformations
+  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(0,-5.0,0));
+
+  Matrix4x4 ground_xform = overall_xform
+    * Matrix4x4::translate(make_float3(-12.5653,0,6.86169));
+
+  Matrix4x4 rock_xform = overall_xform
+    * Matrix4x4::translate(make_float3(-12.0,-0.5,-8.0))
+    * Matrix4x4::rotate(110 * M_PI/180, make_float3(0,1,0))
+    * Matrix4x4::scale(make_float3(3));
+
+  Matrix4x4 tentacles_xform = overall_xform
+    * Matrix4x4::translate(make_float3(-10,0,-2))
+    * Matrix4x4::rotate(-10*M_PI/180, make_float3(0,0,1))
+    * Matrix4x4::rotate(35*M_PI/180, make_float3(0,1,0))
+    * Matrix4x4::scale(make_float3(2));
+
+  //Load the OBJ's
+  ObjLoader * ground_loader = new ObjLoader( texpath("tentacles2/tentacles_on_wavyground.obj").c_str(), _context, ground_geom_group, ground_mat );
+  ground_loader->load(ground_xform);
+  ObjLoader * tentacles_loader = new ObjLoader( texpath("tentacles2/tentacles_tree1.obj").c_str(), _context, tentacles_geom_group, tentacles_mat );
+  tentacles_loader->load(tentacles_xform);
+  ObjLoader * rock_loader = new ObjLoader( texpath("tentacles2/tentacles_rock2.obj").c_str(), _context, rock_geom_group, rock_mat );
+  rock_loader->load(rock_xform);
+
+  //Make one big geom group
+  GeometryGroup geom_group = _context->createGeometryGroup();
+  appendGeomGroup(geom_group, ground_geom_group);
+  appendGeomGroup(geom_group, tentacles_geom_group);
+  appendGeomGroup(geom_group, rock_geom_group);
+
+  //geom_group->setChild(ct, global);
+  geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
+
+  //Set the geom group
+  _context["top_object"]->set( geom_group );
+  _context["top_shadower"]->set( geom_group );
+}
+#endif
+
+#if 0
 //grids2
 void Arealight::createGeometry()
 {
@@ -1092,7 +1244,7 @@ void Arealight::createGeometry()
   grid3_xform = grid3_xform.transpose();
 
   //Load the OBJ's
-  ObjLoader * floor_loader = new ObjLoader( texpath("grids2/floor.obj").c_str(), _context, floor_geom_group, floor_mat );
+  ObjLoader * floor_loader = new ObjLoader( texpath("spheres.obj").c_str(), _context, floor_geom_group, floor_mat );
   floor_loader->load(floor_xform);
   ObjLoader * grid1_loader = new ObjLoader( texpath("grids2/grid1.obj").c_str(), _context, grid1_geom_group, grid1_mat );
   grid1_loader->load(grid1_xform);
@@ -1100,6 +1252,8 @@ void Arealight::createGeometry()
   grid3_loader->load(grid3_xform);
   ObjLoader * grid2_loader = new ObjLoader( texpath("grids2/grid2.obj").c_str(), _context, grid2_geom_group, grid2_mat );
   grid2_loader->load(grid2_xform);
+
+
 
 
   //Make one big geom group
@@ -1116,9 +1270,9 @@ void Arealight::createGeometry()
   std::cout << "asdf" << std::endl;
   std::cout << geom_group->getChildCount() << std::endl;
   appendGeomGroup(geom_group, floor_geom_group);
-  appendGeomGroup(geom_group, grid1_geom_group);
-  appendGeomGroup(geom_group, grid2_geom_group);
-  appendGeomGroup(geom_group, grid3_geom_group);
+  //appendGeomGroup(geom_group, grid1_geom_group);
+  //appendGeomGroup(geom_group, grid2_geom_group);
+  //appendGeomGroup(geom_group, grid3_geom_group);
   //geom_group->setChild(ct, global);
   //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
   geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
@@ -1131,7 +1285,9 @@ void Arealight::createGeometry()
   _context["top_object"]->set( geom_group );
   _context["top_shadower"]->set( geom_group );
 }
-#else
+#endif
+#if 0
+//balance
 void Arealight::createGeometry()
 {
   //Make some temp geomgroups
