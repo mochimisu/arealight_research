@@ -351,7 +351,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   miss_name = "miss";
   _context->setMissProgram( 0, _context->createProgramFromPTXFile( _ptx_path, miss_name ) );
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
-  _context["bg_color"]->setFloat( make_float3(0) ); //make_float3( 0.34f, 0.55f, 0.85f ) );
+  _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
 #if 1
   // grids2
