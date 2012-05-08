@@ -192,7 +192,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["slope"]->set( slope );
 
   // gauss values
-  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
+  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 60); //65);
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
@@ -217,14 +217,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
     0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
     0.0030,    0.0027 };
-  
+  /*
   for(int i=0; i<65; i++) {
   lookups[i] = gaussian_lookup[i];
-  }/*
+  }*/
   for(int i=0; i<60; i++) {
     lookups[i] = exp_lookup[i];
   }
-  */
   gauss_lookup->unmap();
 
   // world space buffer

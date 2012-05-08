@@ -93,6 +93,7 @@ __device__ __inline__ float3 heatMap(float val) {
 
 rtBuffer<float, 1>              gaussian_lookup;
 
+/*
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
   float sample = distsq*wxf*wxf;
@@ -104,8 +105,9 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
   float weight = scaled - index;
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
+*/
 
-/*
+
 __device__ __inline__ float gaussFilter(float dist_sq, float wxf)
 {
   float sample = dist_sq*wxf*wxf/2;
@@ -118,7 +120,7 @@ __device__ __inline__ float gaussFilter(float dist_sq, float wxf)
   //now return exp(-0.5*dist_sq/sigma_sq)
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
-*/
+
 
 //marsaglia polar method
 __device__ __inline__ float2 randomGauss(float center, float std_dev, float2 sample)
