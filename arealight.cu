@@ -93,7 +93,7 @@ __device__ __inline__ float3 heatMap(float val) {
 
 rtBuffer<float, 1>              gaussian_lookup;
 
-/*
+
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
   float sample = distsq*wxf*wxf;
@@ -105,12 +105,12 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
   float weight = scaled - index;
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
-*/
 
 
+/*
 __device__ __inline__ float gaussFilter(float dist_sq, float wxf)
 {
-  float sample = dist_sq*wxf*wxf/2;
+  float sample = dist_sq*wxf*wxf*6;
   if (sample > 5.99) {
     return 0.0;
   }
@@ -120,7 +120,7 @@ __device__ __inline__ float gaussFilter(float dist_sq, float wxf)
   //now return exp(-0.5*dist_sq/sigma_sq)
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
 }
-
+*/
 
 //marsaglia polar method
 __device__ __inline__ float2 randomGauss(float center, float std_dev, float2 sample)
@@ -183,12 +183,14 @@ rtDeclareVariable(uint,           show_occ, , );
 rtDeclareVariable(float,          max_disp_val, , );
 rtDeclareVariable(float,          min_disp_val, , );
 
+rtDeclareVariable(float,          spp_mu, , );
+
 __device__ __inline__ float computeSpp( float t_hit,
   float s1, float s2, float wxf ) {
     //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
     float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
-    float spp_t_1 = (1+d*wxf);
-    float spp_t_2 = (1+s1/s2);
+    float spp_t_1 = (1+spp_mu*d*wxf);
+    float spp_t_2 = (1+spp_mu*s1/s2);
     float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
     return spp;
 }
@@ -252,8 +254,8 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
-  //theoretical_spp = 100000.0;
-  spp[launch_index] = min(4*theoretical_spp, (float) brute_rpp * brute_rpp);
+  //theoretical_spp = 116.0;
+  spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
   spp_filter1d[launch_index] = spp[launch_index];
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {

@@ -192,7 +192,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["slope"]->set( slope );
 
   // gauss values
-  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 60); //65);
+  Buffer gauss_lookup = _context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
   _context["gaussian_lookup"]->set( gauss_lookup );
 
   float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
@@ -217,13 +217,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
     0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
     0.0030,    0.0027 };
-  /*
+  
   for(int i=0; i<65; i++) {
   lookups[i] = gaussian_lookup[i];
-  }*/
+  }/*
   for(int i=0; i<60; i++) {
     lookups[i] = exp_lookup[i];
-  }
+  }*/
   gauss_lookup->unmap();
 
   // world space buffer
@@ -273,10 +273,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _normal_rpp = 4;
   _brute_rpp = 200;
   _max_rpp_pass = 20;
+  float spp_mu = 2;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
   _context["max_rpp_pass"]->setUint(_max_rpp_pass);
+
+  _context["spp_mu"]->setFloat(spp_mu);
 
   _zmin_rpp_scale = 1;
   _context["zmin_rpp_scale"]->setFloat(_zmin_rpp_scale);
@@ -353,7 +356,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
-#if 1
+#if 0
   
   // tentacles2
   
@@ -420,7 +423,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 #endif
-#if 0
+#if 1
   // grids2
   
   float3 pos = make_float3(-4.5, 16, 8);
@@ -835,6 +838,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       std::cout << "SPP stats" << std:: endl;
       //spp = _context["spp"]->getBuffer();
       Buffer cur_spp = _context["spp_cur"]->getBuffer();
+      Buffer brdf = _context["brdf"]->getBuffer();
       spp = _context["spp"]->getBuffer();
       float min_cur_spp = 10000000.0;
       float max_cur_spp = 0.0;
@@ -844,31 +848,47 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       float avg_spp = 0.0;
       //float* spp_arr = reinterpret_cast<float*>( spp->map() );
       float* spp_arr = reinterpret_cast<float*>( spp->map() );
+      float3* brdf_arr = reinterpret_cast<float3*>( brdf->map() );
+      int num_avg = 0;
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
           //std::cout << spp_arr[i+j*_width] <<", ";
-          float cur_spp_val = spp_arr[i+j*_width];
-          min_spp = min(min_spp,cur_spp_val);
-          max_spp = max(max_spp,cur_spp_val);
-          avg_spp += cur_spp_val;
+          //float cur_brdf_x = brdf_arr[i+j*_width].x;
+          //if (cur_brdf_x > -1) {
+            float cur_spp_val = spp_arr[i+j*_width];
+            if (cur_spp_val > 0) {
+            min_spp = min(min_spp,cur_spp_val);
+            max_spp = max(max_spp,cur_spp_val);
+            avg_spp += cur_spp_val;
+            num_avg++;
+            }
+          //}
         }
         //std::cout << std::endl;
       }
       spp->unmap();
-      avg_spp /= _width * _height;
+      avg_spp /= num_avg;
+      int num_cur_avg = 0;
       float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
-          //std::cout << spp_arr[i+j*_width] <<", ";
-          float cur_spp_val = cur_spp_arr[i+j*_width];
-          min_cur_spp = min(min_cur_spp,cur_spp_val);
-          max_cur_spp = max(max_cur_spp,cur_spp_val);
-          avg_cur_spp += cur_spp_val;
+          //float cur_brdf_x = brdf_arr[i+j*_width].x;
+          //if (cur_brdf_x > -1) {
+            //std::cout << spp_arr[i+j*_width] <<", ";
+            float cur_spp_val = cur_spp_arr[i+j*_width];
+            if (cur_spp_val > 0) {
+              min_cur_spp = min(min_cur_spp,cur_spp_val);
+              max_cur_spp = max(max_cur_spp,cur_spp_val);
+              avg_cur_spp += cur_spp_val;
+              num_cur_avg++;
+            }
+          //}
         }
         //std::cout << std::endl;
       }
       cur_spp->unmap();
-      avg_cur_spp /= _width * _height;
+      brdf->unmap();
+      avg_cur_spp /= num_cur_avg;
       std::cout << "Minimum SPP: " << min_cur_spp << std::endl;
       std::cout << "Maximum SPP: " << max_cur_spp << std::endl;
       std::cout << "Average SPP: " << avg_cur_spp << std::endl;
@@ -1028,7 +1048,7 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
     target->setChild(ct_target + i, source->getChild(i));
 }
 
-#if 1
+#if 0
 //tentacles
 void Arealight::createGeometry()
 {
@@ -1112,7 +1132,7 @@ void Arealight::createGeometry()
 }
 #endif
 
-#if 0
+#if 1
 //grids2
 void Arealight::createGeometry()
 {
@@ -1244,7 +1264,7 @@ void Arealight::createGeometry()
   grid3_xform = grid3_xform.transpose();
 
   //Load the OBJ's
-  ObjLoader * floor_loader = new ObjLoader( texpath("spheres.obj").c_str(), _context, floor_geom_group, floor_mat );
+  ObjLoader * floor_loader = new ObjLoader( texpath("grids2/floor.obj").c_str(), _context, floor_geom_group, floor_mat );
   floor_loader->load(floor_xform);
   ObjLoader * grid1_loader = new ObjLoader( texpath("grids2/grid1.obj").c_str(), _context, grid1_geom_group, grid1_mat );
   grid1_loader->load(grid1_xform);
@@ -1270,9 +1290,9 @@ void Arealight::createGeometry()
   std::cout << "asdf" << std::endl;
   std::cout << geom_group->getChildCount() << std::endl;
   appendGeomGroup(geom_group, floor_geom_group);
-  //appendGeomGroup(geom_group, grid1_geom_group);
-  //appendGeomGroup(geom_group, grid2_geom_group);
-  //appendGeomGroup(geom_group, grid3_geom_group);
+  appendGeomGroup(geom_group, grid1_geom_group);
+  appendGeomGroup(geom_group, grid2_geom_group);
+  appendGeomGroup(geom_group, grid3_geom_group);
   //geom_group->setChild(ct, global);
   //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
   geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
