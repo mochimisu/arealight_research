@@ -251,7 +251,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer dist_to_light = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_to_light"]->set( dist_to_light );
 
-  _blur_occ = 1;
+  _blur_occ = 0;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -271,9 +271,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   _normal_rpp = 4;
-  _brute_rpp = 200;
-  _max_rpp_pass = 20;
-  float spp_mu = 2;
+  _brute_rpp = 2000;
+  _max_rpp_pass = 40;
+  float spp_mu = 16;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -382,7 +382,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   };
 
   float3 normed_norm = normalize(norm);
-  _context["lightnorm"]->setFloat(normed_norm);
+  _context["lightnorm"]->setFloat(normed_norm);
+
   _sigma = sqrt(length(norm)/4.0f);
   std::cout << "Sigma: " << _sigma << std::endl;
   _sigma = 0.35;
@@ -448,10 +449,11 @@ void Arealight::initScene( InitialCameraData& camera_data )
   };
 
   float3 normed_norm = normalize(norm);
-  _context["lightnorm"]->setFloat(normed_norm);
+  _context["lightnorm"]->setFloat(normed_norm);
+
   _sigma = sqrt(length(norm)/4.0f);
   std::cout << "Sigma: " << _sigma << std::endl;
-  _sigma = 0.75;
+  //_sigma = 0.75;
 
   _context["light_sigma"]->setFloat(_sigma);
 
@@ -614,8 +616,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
 
   //Resample
-#if 0
-  num_resample = 10;
+#if 1
+  num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),

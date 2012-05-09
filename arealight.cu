@@ -189,14 +189,14 @@ __device__ __inline__ float computeSpp( float t_hit,
   float s1, float s2, float wxf ) {
     //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
     float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
-    float spp_t_1 = (1+spp_mu*d*wxf);
+    float spp_t_1 = (1/(1+s2)+d*wxf);
     float spp_t_2 = (1+spp_mu*s1/s2);
     float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
     return spp;
 }
 
 __device__ __inline__ float computeWxf( float s2 ) {
-  return 1.0/(light_sigma * s2);
+  return spp_mu/(light_sigma * s2);
 }
 
 RT_PROGRAM void pinhole_camera_initial_sample() {
@@ -254,7 +254,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
-  //theoretical_spp = 116.0;
+  theoretical_spp = 100000000.0;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
   spp_filter1d[launch_index] = spp[launch_index];
 
@@ -331,7 +331,7 @@ RT_PROGRAM void display_camera() {
       //Scale
       //output_buffer[launch_index] = make_color( make_float3(scale) );
       float min_wxf = computeWxf(min_disp_val);
-      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma) * 1.0) );
+      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma) * 7.0) );
     }
     if (view_mode == 3) 
       //Current SPP
@@ -707,7 +707,7 @@ RT_PROGRAM void closest_hit_radiance3()
       float strength = exp( -0.5 * ((light_center.x - target.x) * (light_center.x - target.x) \
         + (light_center.y - target.y) * (light_center.y - target.y) \
         + (light_center.z - target.z) * (light_center.z - target.z)) \
-        / ( 2 * light_sigma * light_sigma));
+        / ( light_sigma * light_sigma));
 
       float3 sampleDir = normalize(target - hit_point);
 
