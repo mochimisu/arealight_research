@@ -164,6 +164,7 @@ rtBuffer<uint, 2>                 use_filter_n;
 rtBuffer<uint, 2>                 use_filter_occ;
 rtBuffer<uint, 2>                 use_filter_occ_filter1d;
 rtBuffer<float, 2>                proj_d;
+rtBuffer<int, 2>                  obj_id_b;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           blur_wxf, , );
@@ -229,8 +230,11 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   prd.s1 = slope[launch_index].x;
   prd.s2 = slope[launch_index].y;
   prd.hit = false;
+  prd.obj_id = -1;
 
   rtTrace(top_object, ray, prd);
+
+  obj_id_b[launch_index] = prd.obj_id;
 
   if (!prd.hit) {
     vis[launch_index] = make_float3(1,1,0);
@@ -258,7 +262,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
-  theoretical_spp = 12.0;
+  //theoretical_spp = 12.0;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
   spp_filter1d[launch_index] = spp[launch_index];
 
@@ -270,7 +274,13 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 }
 
 RT_PROGRAM void pinhole_camera_continue_sample() {
-  float target_spp = spp[launch_index];
+  //float target_spp = spp[launch_index];
+  if (brdf[launch_index].x < -1.0f)
+      return;
+  float2 cur_slope = slope[launch_index];
+  float wxf = computeWxf(cur_slope.y);
+  float target_spp = computeSpp(cur_slope.x, cur_slope.y, wxf);
+  spp[launch_index] = target_spp;
   float cur_spp = spp_cur[launch_index];
 
   // Compute spp difference
@@ -355,7 +365,7 @@ RT_PROGRAM void display_camera() {
       //View areas that are not yet converged to theoretical spp
       output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index] < spp[launch_index],0,0) );
     if (view_mode == 8)
-      output_buffer[launch_index] = make_color( heatMap( slope[launch_index].x * 10.0 ) );
+      output_buffer[launch_index] = make_color( heatMap( (float)(obj_id_b[launch_index]-10)/5.0 ) );
   } else
     output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
@@ -499,12 +509,15 @@ RT_PROGRAM void spp_filter_second_pass() {
 
   //spp[launch_index] = cur_spp;
   return;}
-__device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt, unsigned int i,
-  unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {  float2 output_slope = cur_slope;
-  uint use_filter;
+__device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt, int obj_id,
+    unsigned int i, unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {  float2 output_slope = cur_slope;
+  uint use_filter = 0;
   if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
     uint2 target_index = make_uint2(i,j);
     float2 target_slope;
+    int target_id = obj_id_b[target_index];
+	if (target_id != obj_id)
+		return output_slope;
     if (pass == 0) {
       target_slope = slope[target_index];
       use_filter = use_filter_occ[target_index];
@@ -526,8 +539,9 @@ RT_PROGRAM void s1s2_filter_first_pass() {
   float2 cur_slope = slope[launch_index];
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ[launch_index];
+  int obj_id = obj_id_b[launch_index];
   for (int i = -5; i < 5; i++) {
-    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, launch_index.x + i, launch_index.y, buf_size, 0);
+    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, launch_index.x + i, launch_index.y, buf_size, 0);
   }
   use_filter_occ_filter1d[launch_index] |= use_filter;
   slope_filter1d[launch_index] = cur_slope;
@@ -538,9 +552,10 @@ RT_PROGRAM void s1s2_filter_second_pass() {
   float2 cur_slope = slope_filter1d[launch_index];
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ_filter1d[launch_index];
+  int obj_id = obj_id_b[launch_index];
   for (int i = -5; i < 5; i++) {
     bool use_filter = use_filter_occ_filter1d[launch_index];
-    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, launch_index.x, launch_index.y + i, buf_size, 1);
+    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, launch_index.x, launch_index.y + i, buf_size, 1);
   }
   if (!use_filter_occ[launch_index]) {
     use_filter_occ[launch_index] |= use_filter;
@@ -635,6 +650,7 @@ rtDeclareVariable(float3,   Ka, , );
 rtDeclareVariable(float3,   Ks, , );
 rtDeclareVariable(float,    phong_exp, , );
 rtDeclareVariable(float3,   Kd, , );
+rtDeclareVariable(int,      obj_id, , );
 rtDeclareVariable(float3,   ambient_light_color, , );
 rtDeclareVariable(rtObject, top_shadower, , );
 rtDeclareVariable(float3, reflectivity, , );
@@ -656,6 +672,7 @@ RT_PROGRAM void closest_hit_radiance3()
   prd_radiance.world_loc = hit_point;
   prd_radiance.hit = true;
   prd_radiance.n = ffnormal;
+  prd_radiance.obj_id = obj_id;
 
   uint2 seed = shadow_rng_seeds[launch_index];
 

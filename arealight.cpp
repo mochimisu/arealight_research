@@ -254,6 +254,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer proj_d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["proj_d"]->set( proj_d );
 
+  Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
+  _context["obj_id_b"]->set( obj_id );
+
   _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 

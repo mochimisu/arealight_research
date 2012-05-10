@@ -68,6 +68,7 @@ struct PerRayData_radiance
   float3 world_loc;
   float3 n;
   float3 brdf;
+  int obj_id;
 };
 
 struct PerRayData_shadow
