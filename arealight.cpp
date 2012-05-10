@@ -251,7 +251,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer dist_to_light = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
   _context["dist_to_light"]->set( dist_to_light );
 
-  _blur_occ = 0;
+  Buffer proj_d = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
+  _context["proj_d"]->set( proj_d );
+
+  _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -272,8 +275,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 4;
   _brute_rpp = 2000;
-  _max_rpp_pass = 40;
-  float spp_mu = 16;
+  _max_rpp_pass = 25;
+  float spp_mu = 8;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -616,7 +619,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
 
   //Resample
-#if 1
+#if 0
   num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
@@ -852,6 +855,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       float* spp_arr = reinterpret_cast<float*>( spp->map() );
       float3* brdf_arr = reinterpret_cast<float3*>( brdf->map() );
       int num_avg = 0;
+
+	  int num_low = 0;
       for(unsigned int j = 0; j < _height; ++j ) {
         for(unsigned int i = 0; i < _width; ++i ) {
           //std::cout << spp_arr[i+j*_width] <<", ";
@@ -863,6 +868,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
             max_spp = max(max_spp,cur_spp_val);
             avg_spp += cur_spp_val;
             num_avg++;
+
             }
           //}
         }
@@ -870,6 +876,9 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       }
       spp->unmap();
       avg_spp /= num_avg;
+	  uint2 err_loc;
+	  uint2 err_first_loc;
+	  bool first_loc_set = false;
       int num_cur_avg = 0;
       float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
       for(unsigned int j = 0; j < _height; ++j ) {
@@ -878,11 +887,18 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
           //if (cur_brdf_x > -1) {
             //std::cout << spp_arr[i+j*_width] <<", ";
             float cur_spp_val = cur_spp_arr[i+j*_width];
-            if (cur_spp_val > 0) {
+            if (cur_spp_val > 16.01) {
               min_cur_spp = min(min_cur_spp,cur_spp_val);
               max_cur_spp = max(max_cur_spp,cur_spp_val);
               avg_cur_spp += cur_spp_val;
-              num_cur_avg++;
+              num_cur_avg++;			if (cur_spp_val < 17) {
+			  num_low++;
+			  if (!first_loc_set) {
+				  err_first_loc = make_uint2(i,j);
+				  first_loc_set = true;
+			  }
+			  err_loc = make_uint2(i,j);
+			  }
             }
           //}
         }
@@ -891,6 +907,9 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       cur_spp->unmap();
       brdf->unmap();
       avg_cur_spp /= num_cur_avg;
+	  std::cout << "Num cur spp below 17spp" << num_low << std::endl;
+	  std::cout << "first is at " << err_first_loc.x << ", " << err_first_loc.y << std::endl;
+	  std::cout << "one is at " << err_loc.x << ", " << err_loc.y << std::endl;
       std::cout << "Minimum SPP: " << min_cur_spp << std::endl;
       std::cout << "Maximum SPP: " << max_cur_spp << std::endl;
       std::cout << "Average SPP: " << avg_cur_spp << std::endl;

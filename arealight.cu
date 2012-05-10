@@ -163,6 +163,7 @@ rtBuffer<float2, 2>               slope;
 rtBuffer<uint, 2>                 use_filter_n;
 rtBuffer<uint, 2>                 use_filter_occ;
 rtBuffer<uint, 2>                 use_filter_occ_filter1d;
+rtBuffer<float, 2>                proj_d;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           blur_wxf, , );
@@ -185,18 +186,17 @@ rtDeclareVariable(float,          min_disp_val, , );
 
 rtDeclareVariable(float,          spp_mu, , );
 
-__device__ __inline__ float computeSpp( float t_hit,
-  float s1, float s2, float wxf ) {
+__device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
     //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
-    float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
-    float spp_t_1 = (1/(1+s2)+d*wxf);
+    //float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
+    float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
     float spp_t_2 = (1+spp_mu*s1/s2);
     float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
     return spp;
 }
 
 __device__ __inline__ float computeWxf( float s2 ) {
-  return spp_mu/(light_sigma * s2);
+  return min(spp_mu/(light_sigma * s2), 1/(proj_d[launch_index]*(1+s2)));
 }
 
 RT_PROGRAM void pinhole_camera_initial_sample() {
@@ -213,7 +213,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   slope[launch_index] = make_float2(0.0, 10000.0);
   float current_spp = normal_rpp * normal_rpp;
   //spp[launch_index] = current_spp;
-  //spp_cur[launch_index] = current_spp;
+  //spp_cur[launch_index] = 0;
   use_filter_n[launch_index] = false;
   use_filter_occ[launch_index] = false;
   use_filter_occ_filter1d[launch_index] = false;
@@ -235,14 +235,18 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   if (!prd.hit) {
     vis[launch_index] = make_float3(1,1,0);
     spp[launch_index] = 0;
+    spp_cur[launch_index] = 0;
     brdf[launch_index].x = -2;
     return;
   }
 
+  //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
+  float proj_dist = 1.0/360.0 * (prd.t_hit*tan(30.0*M_PI/180.0));
+  proj_d[launch_index] = proj_dist;
   float wxf = computeWxf(prd.s2);
   float theoretical_spp = 0;
   if(prd.hit_shadow)
-    theoretical_spp = computeSpp(prd.t_hit, prd.s1, prd.s2, wxf);
+    theoretical_spp = computeSpp(prd.s1, prd.s2, wxf);
 
   world_loc[launch_index] = prd.world_loc;
   brdf[launch_index] = prd.brdf;
@@ -254,7 +258,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
-  theoretical_spp = 100000000.0;
+  //theoretical_spp = 535.0;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
   spp_filter1d[launch_index] = spp[launch_index];
 
