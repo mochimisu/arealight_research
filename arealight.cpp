@@ -27,6 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
+#define SCENE 1
 
 //#define BENCHMARK_NUM 100
 
@@ -279,7 +280,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _normal_rpp = 3;
   _brute_rpp = 2000;
   _max_rpp_pass = 25;
-  float spp_mu = 1;
+  float spp_mu = 6;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -362,7 +363,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
-#if 0
+#if SCENE==3
   
   // tentacles2
   
@@ -430,7 +431,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
   _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 #endif
-#if 1
+#if SCENE==1
   // grids2
   
   float3 pos = make_float3(-4.5, 16, 8);
@@ -498,7 +499,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 
 #endif
-#if 0
+#if SCENE==2
   // balance
   // Area lights
   AreaLight lights[] = {
@@ -898,7 +899,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
               min_cur_spp = min(min_cur_spp,cur_spp_val);
               max_cur_spp = max(max_cur_spp,cur_spp_val);
               avg_cur_spp += cur_spp_val;
-              num_cur_avg++;              if (cur_spp_val < 10)
+              num_cur_avg++;
+              if (cur_spp_val < 10)
                   num_cur_low++;
             }
           }
@@ -1072,7 +1074,7 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
     target->setChild(ct_target + i, source->getChild(i));
 }
 
-#if 0
+#if SCENE==3
 //tentacles
 void Arealight::createGeometry()
 {
@@ -1156,7 +1158,7 @@ void Arealight::createGeometry()
 }
 #endif
 
-#if 1
+#if SCENE==1
 //grids2
 void Arealight::createGeometry()
 {
@@ -1330,7 +1332,7 @@ void Arealight::createGeometry()
   _context["top_shadower"]->set( geom_group );
 }
 #endif
-#if 0
+#if SCENE==2
 //balance
 void Arealight::createGeometry()
 {
@@ -1459,7 +1461,7 @@ void Arealight::createGeometry()
 }
 #endif
 
-#if 0
+#if SCENE==0
 void Arealight::createGeometry()
 {
   std::string box_ptx( ptxpath( "arealight", "box.cu" ) ); 

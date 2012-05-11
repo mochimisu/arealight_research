@@ -262,7 +262,6 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index].x = 1;
 
   spp_cur[launch_index] = current_spp;
-  //theoretical_spp = 12.0;
   spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
   spp_filter1d[launch_index] = spp[launch_index];
 
@@ -280,6 +279,7 @@ RT_PROGRAM void pinhole_camera_continue_sample() {
   float2 cur_slope = slope[launch_index];
   float wxf = computeWxf(cur_slope.y);
   float target_spp = computeSpp(cur_slope.x, cur_slope.y, wxf);
+  //target_spp = 170.0;
   spp[launch_index] = target_spp;
   float cur_spp = spp_cur[launch_index];
 
