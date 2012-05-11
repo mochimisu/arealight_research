@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 2
+#define SCENE 3
 
 //#define BENCHMARK_NUM 100
 
