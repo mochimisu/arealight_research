@@ -218,13 +218,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
     0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
     0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
     0.0030,    0.0027 };
-  
+
   for(int i=0; i<65; i++) {
-  lookups[i] = gaussian_lookup[i];
+    lookups[i] = gaussian_lookup[i];
   }/*
-  for(int i=0; i<60; i++) {
-    lookups[i] = exp_lookup[i];
-  }*/
+   for(int i=0; i<60; i++) {
+   lookups[i] = exp_lookup[i];
+   }*/
   gauss_lookup->unmap();
 
   // world space buffer
@@ -333,11 +333,11 @@ void Arealight::initScene( InitialCameraData& camera_data )
   // SPP Filter programs
   std::string first_pass_spp_filter_name = "spp_filter_first_pass";
   Program first_spp_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-  first_pass_spp_filter_name );
+    first_pass_spp_filter_name );
   _context->setRayGenerationProgram( 7, first_spp_filter_program );
   std::string second_pass_spp_filter_name = "spp_filter_second_pass";
   Program second_spp_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-  second_pass_spp_filter_name );
+    second_pass_spp_filter_name );
   _context->setRayGenerationProgram( 8, second_spp_filter_program );
 
 
@@ -364,9 +364,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
 #if SCENE==3
-  
   // tentacles2
-  
+
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(1.5, 16, 8);
   float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
@@ -420,7 +419,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // Set up camera
   camera_data = InitialCameraData( make_float3( 0.1, 3.1, 0.1 ), // eye
-  //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
+    //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
     make_float3( -8.0f, 0.5f,  -5.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
@@ -433,7 +432,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #endif
 #if SCENE==1
   // grids2
-  
+
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(1.5, 16, 8);
   float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
@@ -487,7 +486,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // Set up camera
   camera_data = InitialCameraData( make_float3( -4.5f, 2.5f, 5.5f ), // eye
-  //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
+    //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
     make_float3( 0.0f, 0.5f,  0.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
@@ -617,9 +616,9 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   //Filter spp
   _context->launch( 7, static_cast<unsigned int>(buffer_width),
-  static_cast<unsigned int>(buffer_height) );
+    static_cast<unsigned int>(buffer_height) );
   _context->launch( 8, static_cast<unsigned int>(buffer_width),
-  static_cast<unsigned int>(buffer_height) );
+    static_cast<unsigned int>(buffer_height) );
 
 
   //Resample
@@ -866,14 +865,14 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
           //std::cout << spp_arr[i+j*_width] <<", ";
           float cur_brdf_x = brdf_arr[i+j*_width].x;
           if (cur_brdf_x > -1) {
-              //std::cout << "brdf: " << cur_brdf_x << std::endl;
+            //std::cout << "brdf: " << cur_brdf_x << std::endl;
             float cur_spp_val = spp_arr[i+j*_width];
             if (cur_spp_val > -0.001) {
-            min_spp = min(min_spp,cur_spp_val);
-            max_spp = max(max_spp,cur_spp_val);
-            avg_spp += cur_spp_val;
-            num_avg++;
-            if (cur_spp_val < 10)
+              min_spp = min(min_spp,cur_spp_val);
+              max_spp = max(max_spp,cur_spp_val);
+              avg_spp += cur_spp_val;
+              num_avg++;
+              if (cur_spp_val < 10)
                 num_low++;
 
             }
@@ -912,8 +911,8 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       avg_cur_spp /= num_cur_avg;
       std::cout << "Num cur spp below 10spp" << num_cur_low << std::endl;
       std::cout << "Num theoretical spp below 10spp" << num_low << std::endl;
-	  std::cout << "Num current sampled" << num_cur_avg << std::endl;
-	  std::cout << "Num theoretical sampled" << num_avg << std::endl;
+      std::cout << "Num current sampled" << num_cur_avg << std::endl;
+      std::cout << "Num theoretical sampled" << num_avg << std::endl;
 
       std::cout << "Minimum SPP: " << min_cur_spp << std::endl;
       std::cout << "Maximum SPP: " << max_cur_spp << std::endl;
