@@ -27,7 +27,10 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 3
+#define SCENE 2
+//Grids 1
+//Balance 2
+//Tentacles 3
 
 //#define BENCHMARK_NUM 100
 
@@ -367,8 +370,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   // tentacles2
 
   float3 pos = make_float3(-4.5, 16, 8);
-  float3 pos1 = make_float3(1.5, 16, 8);
-  float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
+  float3 pos1 = make_float3(-2.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 17.8284, 6.8284);
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -502,8 +505,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
   // balance
   // Area lights
   float3 pos = make_float3( 18.5556f, 25.1727f, 10.9409f);
-  float3 pos1 = make_float3( 18.5556f, 25.1727f, 11.9409f);
-  float3 pos2 = make_float3( 17.6368f, 25.5674f, 10.9431f);
+  float3 pos1 = make_float3( 18.5556f, 25.1727f, 13.9409f);
+  float3 pos2 = make_float3( 15.6368f, 27.5674f, 10.9431f);
   
   /*
   float3 pos = make_float3(-4.5, 16, 8);
@@ -1370,7 +1373,7 @@ void Arealight::createGeometry()
   balance_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   balance_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   balance_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  balance_mat["Kd"]->setFloat( 0.776f, 0.321f, 0.137f );
+  balance_mat["Kd"]->setFloat( 0.976f, 0.521f, 0.337f );
   balance_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   balance_mat["phong_exp"]->setFloat( 100.0f );
   balance_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -1381,7 +1384,7 @@ void Arealight::createGeometry()
   street_lamp_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   street_lamp_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   street_lamp_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  street_lamp_mat["Kd"]->setFloat( 1.5f, 1.1f, 0.1f );
+  street_lamp_mat["Kd"]->setFloat( 1.7f, 1.3f, 0.3f );
   street_lamp_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   street_lamp_mat["phong_exp"]->setFloat( 100.0f );
   street_lamp_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -1392,7 +1395,7 @@ void Arealight::createGeometry()
   tree_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   tree_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   tree_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  tree_mat["Kd"]->setFloat( 0.200f, 0.080f, 0.020f );
+  tree_mat["Kd"]->setFloat( 0.500f, 0.380f, 0.320f );
   tree_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   tree_mat["phong_exp"]->setFloat( 100.0f );
   tree_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -1403,7 +1406,7 @@ void Arealight::createGeometry()
   ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   ground_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  ground_mat["Kd"]->setFloat( 0.120f, 0.270f, 0.050f );
+  ground_mat["Kd"]->setFloat( 0.320f, 0.470f, 0.250f );
   ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   ground_mat["phong_exp"]->setFloat( 100.0f );
   ground_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
