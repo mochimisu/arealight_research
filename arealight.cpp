@@ -501,10 +501,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #if SCENE==2
   // balance
   // Area lights
+  float3 pos = make_float3( 18.5556f, 25.1727f, 10.9409f);
+  float3 pos1 = make_float3( 18.5556f, 25.1727f, 11.9409f);
+  float3 pos2 = make_float3( 17.6368f, 25.5674f, 10.9431f);
   
-  float3 pos = make_float3(-4.5, 16, 8);
-  float3 pos1 = make_float3(1.5, 16, 8);
-  float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
