@@ -192,7 +192,7 @@ __device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
   //float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
   float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
   float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] * s1/(1+s1)));
-  float spp = 4*4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
+  float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
   return spp;
 }
 

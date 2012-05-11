@@ -1802,7 +1802,7 @@ int main( int argc, char** argv )
     _scene->setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
-    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDProgressive );//GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
+    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
