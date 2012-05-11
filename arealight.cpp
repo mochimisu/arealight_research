@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 1
+#define SCENE 2
 
 //#define BENCHMARK_NUM 100
 
@@ -267,7 +267,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _err_vis = 1;
   _context["err_vis"]->setUint(_err_vis);
 
-  _view_mode = 1;
+  _view_mode = 0;
   _context["view_mode"]->setUint(_view_mode);
 
   _show_brdf = 1;
@@ -280,7 +280,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _normal_rpp = 3;
   _brute_rpp = 2000;
   _max_rpp_pass = 25;
-  float spp_mu = 6;
+  float spp_mu = 1;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -500,14 +500,37 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #endif
 #if SCENE==2
   // balance
-  // Area lights
+  // Area lights
+  
+  float3 pos = make_float3(-4.5, 16, 8);
+  float3 pos1 = make_float3(1.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 21.8284, 3.8284);
+  /*
+  float3 pos = make_float3(-4.5, 16, 8);
+  float3 pos1 = make_float3(3.5, 16, 8);
+  float3 pos2 = make_float3(-4.5, 17, 7);
+  */
+  float3 axis1 = pos1-pos;
+  float3 axis2 = pos2-pos;
+  
+  float3 norm = cross(axis1,axis2);
+  
   AreaLight lights[] = {
-    { make_float3( 18.5556f, 25.1727f, 10.9409f),
-    make_float3( 18.5556f, 25.1727f, 11.9409f),
-    make_float3( 17.6368f, 25.5674f, 10.9431f),
-    make_float3(1.0f, 1.0f, 1.0f)
-    }
+  { pos,
+  pos1,
+  pos2,
+  make_float3(1.0f, 1.0f, 1.0f)
+  }
   };
+  
+  float3 normed_norm = normalize(norm);
+  _context["lightnorm"]->setFloat(normed_norm);
+  
+  _sigma = sqrt(length(norm)/4.0f);
+  std::cout << "Sigma: " << _sigma << std::endl;
+  
+  _context["light_sigma"]->setFloat(_sigma);
+
   _env_lights = lights;
   light_buffer = _context->createBuffer(RT_BUFFER_INPUT);
   light_buffer->setFormat(RT_FORMAT_USER);

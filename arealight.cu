@@ -508,9 +508,12 @@ RT_PROGRAM void spp_filter_second_pass() {
   //  use_filter_occ[launch_index] |= 1;
 
   //spp[launch_index] = cur_spp;
-  return;}
+  return;
+}
+
 __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt, int obj_id,
-  unsigned int i, unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {    float2 output_slope = cur_slope;
+  unsigned int i, unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {
+    float2 output_slope = cur_slope;
     uint use_filter = 0;
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
       uint2 target_index = make_uint2(i,j);
@@ -548,7 +551,8 @@ RT_PROGRAM void s1s2_filter_first_pass() {
   return;
 }
 
-RT_PROGRAM void s1s2_filter_second_pass() {
+RT_PROGRAM void s1s2_filter_second_pass() {
+
   float2 cur_slope = slope_filter1d[launch_index];
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ_filter1d[launch_index];
@@ -562,10 +566,13 @@ RT_PROGRAM void s1s2_filter_second_pass() {
     slope[launch_index] = cur_slope;
   }
   return;
-}
+}
+
+
 __device__ __inline__ float2 s1s2FilterGauss(float2& cur_slope, 
   float2& cur_slope_sum, float2& cur_wieght_sum, unsigned int i,
-  unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {    float2 output_slope = cur_slope;
+  unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {
+    float2 output_slope = cur_slope;
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
       uint2 target_index = make_uint2(i,j);
       float2 target_slope;
@@ -599,7 +606,8 @@ RT_PROGRAM void s1s2_filter_third_pass() {
   return;
 }
 
-RT_PROGRAM void s1s2_filter_fourth_pass() {  float2 cur_slope = slope_filter1d[launch_index];
+RT_PROGRAM void s1s2_filter_fourth_pass() {
+  float2 cur_slope = slope_filter1d[launch_index];
   size_t2 buf_size = slope.size();
   float2 cur_slope_sum = make_float2(0.0);
   float2 cur_weight_sum = make_float2(0.0);
