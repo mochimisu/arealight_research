@@ -96,7 +96,7 @@ rtBuffer<float, 1>              gaussian_lookup;
 
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
-  float sample = distsq*wxf*wxf*4;
+  float sample = distsq*wxf*wxf;
   if (sample > 0.9999) {
     return 0.0;
   }
@@ -345,7 +345,7 @@ RT_PROGRAM void display_camera() {
       //Scale
       //output_buffer[launch_index] = make_color( make_float3(scale) );
       float min_wxf = computeWxf(min_disp_val);
-      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma) * 1.0) );
+      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma) * 3.0) );
     }
     if (view_mode == 3) 
       //Current SPP
