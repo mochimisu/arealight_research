@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 2
+#define SCENE 3
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -280,9 +280,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["show_occ"]->setUint(_show_occ);
 
 
-  _normal_rpp = 3;
+  _normal_rpp = 4;
   _brute_rpp = 2000;
-  _max_rpp_pass = 25;
+  _max_rpp_pass = 10;
   float spp_mu = 1;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -421,9 +421,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( 0.1, 3.1, 0.1 ), // eye
+  camera_data = InitialCameraData( make_float3( -5.1, 6.1, -4.1 ), // eye
     //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
-    make_float3( -8.0f, 0.5f,  -5.0f ), // lookat
+    make_float3( -20.0f, 0.5f,  -7.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
@@ -649,7 +649,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   //Resample
 #if 0
-  num_resample = 20;
+  num_resample = 10;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
@@ -1147,7 +1147,11 @@ void Arealight::createGeometry()
   Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(0,-5.0,0));
 
   Matrix4x4 ground_xform = overall_xform
-    * Matrix4x4::translate(make_float3(-12.5653,0,6.86169));
+    * Matrix4x4::translate(make_float3(5.5653,-8,-20.86169));
+
+  Matrix4x4 ground_xform2 = overall_xform
+    * Matrix4x4::translate(make_float3(-20,1,-10))
+    * Matrix4x4::scale(make_float3(100,10,100));
 
   Matrix4x4 rock_xform = overall_xform
     * Matrix4x4::translate(make_float3(-12.0,-0.5,-8.0))
@@ -1161,8 +1165,10 @@ void Arealight::createGeometry()
     * Matrix4x4::scale(make_float3(2));
 
   //Load the OBJ's
-  ObjLoader * ground_loader = new ObjLoader( texpath("tentacles2/tentacles_on_wavyground.obj").c_str(), _context, ground_geom_group, ground_mat );
-  ground_loader->load(ground_xform);
+  //ObjLoader * ground_loader = new ObjLoader( texpath("tentacles2/tentacles_on_wavyground.obj").c_str(), _context, ground_geom_group, ground_mat );
+  //ground_loader->load(ground_xform);
+  ObjLoader * ground_loader2 = new ObjLoader( texpath("grids2/floor.obj").c_str(), _context, ground_geom_group, ground_mat );
+  ground_loader2->load(ground_xform2);
   ObjLoader * tentacles_loader = new ObjLoader( texpath("tentacles2/tentacles_tree1.obj").c_str(), _context, tentacles_geom_group, tentacles_mat );
   tentacles_loader->load(tentacles_xform);
   ObjLoader * rock_loader = new ObjLoader( texpath("tentacles2/tentacles_rock2.obj").c_str(), _context, rock_geom_group, rock_mat );

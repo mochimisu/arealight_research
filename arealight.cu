@@ -192,7 +192,7 @@ __device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
   //float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
   float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
   float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] * s1/(1+s1)));
-  float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
+  float spp = 4*4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
   return spp;
 }
 
@@ -279,7 +279,7 @@ RT_PROGRAM void pinhole_camera_continue_sample() {
   float2 cur_slope = slope[launch_index];
   float wxf = computeWxf(cur_slope.y);
   float target_spp = computeSpp(cur_slope.x, cur_slope.y, wxf);
-  //target_spp = 170.0;
+  //target_spp = 17000000.0;
   spp[launch_index] = target_spp;
   float cur_spp = spp_cur[launch_index];
 
@@ -369,7 +369,6 @@ RT_PROGRAM void display_camera() {
   } else
     output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
-
 }
 
 rtBuffer<AreaLight>        lights;
@@ -394,7 +393,7 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
           float euclidean_distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
           float normcomp = dot(diff, lightnorm);
           float distancesq = euclidean_distancesq - normcomp*normcomp;
-          if (distancesq < 1.0) {
+          if (distancesq < 10.0) {
             float3 target_n = n[target_index];
             if (acos(dot(target_n, cur_n)) < angle_threshold) {
               float weight = gaussFilter(distancesq, wxf);
