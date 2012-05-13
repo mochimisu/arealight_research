@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 4
+#define SCENE 3
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -490,9 +490,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( -5.1, 6.1, -4.1 ), // eye
+  camera_data = InitialCameraData( make_float3( -6.1, 12.1, -5.1 ), // eye
     //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
-    make_float3( -20.0f, 2.5f,  -15.0f ), // lookat
+    make_float3( -20.0f, 2.0f,  -15.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
@@ -1295,7 +1295,8 @@ void Arealight::createGeometry()
     * Matrix4x4::translate(make_float3(-20,1,-10))
     * Matrix4x4::scale(make_float3(100,10,100));
 	Matrix4x4 ground_xform3 = overall_xform
-	* Matrix4x4::translate(make_float3(-20,-3,-10));
+	* Matrix4x4::translate(make_float3(-20,-3,-10))
+	* Matrix4x4::scale(make_float3(0.5));
 
   Matrix4x4 rock_xform = overall_xform
     * Matrix4x4::translate(make_float3(-12.0,-0.5,-8.0))
