@@ -96,7 +96,7 @@ rtBuffer<float, 1>              gaussian_lookup;
 
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
-  float sample = distsq*wxf*wxf;
+  float sample = distsq*wxf*wxf*4;
   if (sample > 0.9999) {
     return 0.0;
   }
@@ -192,7 +192,7 @@ __device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
   //float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
   float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
   float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] * s1/(1+s1)));
-  float spp = 4*4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
+  float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
   return spp;
 }
 
@@ -537,12 +537,14 @@ __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt,
     return output_slope;
 }
 
+#define S1S2_RADIUS 10
+
 RT_PROGRAM void s1s2_filter_first_pass() {
   float2 cur_slope = slope[launch_index];
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ[launch_index];
   int obj_id = obj_id_b[launch_index];
-  for (int i = -5; i < 5; i++) {
+  for (int i = -S1S2_RADIUS; i < S1S2_RADIUS; i++) {
     cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, launch_index.x + i, launch_index.y, buf_size, 0);
   }
   use_filter_occ_filter1d[launch_index] |= use_filter;
@@ -556,8 +558,7 @@ RT_PROGRAM void s1s2_filter_second_pass() {
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ_filter1d[launch_index];
   int obj_id = obj_id_b[launch_index];
-  for (int i = -5; i < 5; i++) {
-    bool use_filter = use_filter_occ_filter1d[launch_index];
+  for (int i = -S1S2_RADIUS; i < S1S2_RADIUS; i++) {
     cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, launch_index.x, launch_index.y + i, buf_size, 1);
   }
   if (!use_filter_occ[launch_index]) {

@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 3
+#define SCENE 1
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -280,10 +280,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context["show_occ"]->setUint(_show_occ);
 
 
-  _normal_rpp = 4;
+  _normal_rpp = 3;
   _brute_rpp = 2000;
   _max_rpp_pass = 10;
-  float spp_mu = 1;
+  float spp_mu = 2;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -503,7 +503,8 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #endif
 #if SCENE==2
   // balance
-  // Area lights
+  // Area lights
+
   float3 pos = make_float3( 18.5556f, 25.1727f, 10.9409f);
   float3 pos1 = make_float3( 18.5556f, 25.1727f, 13.9409f);
   float3 pos2 = make_float3( 15.6368f, 27.5674f, 10.9431f);
