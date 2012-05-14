@@ -345,7 +345,10 @@ RT_PROGRAM void display_camera() {
       //Scale
       //output_buffer[launch_index] = make_color( make_float3(scale) );
       float min_wxf = computeWxf(min_disp_val);
-      output_buffer[launch_index] = make_color( heatMap(1/(wxf/light_sigma) * 3.0) );
+      float vis_color = 1/(wxf*light_sigma) * 8.0;
+      output_buffer[launch_index] = make_color( heatMap(vis_color) );
+      if (vis_color > 5)
+        output_buffer[launch_index] = make_color( make_float3(0) );
     }
     if (view_mode == 3) 
       //Current SPP

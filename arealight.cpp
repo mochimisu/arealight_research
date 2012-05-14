@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 4
+#define SCENE 1
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -284,7 +284,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _normal_rpp = 3;
   _brute_rpp = 2000;
   _max_rpp_pass = 10;
-  float spp_mu = 2;
+  float spp_mu = 1;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -366,7 +366,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context->setMissProgram( 0, _context->createProgramFromPTXFile( _ptx_path, miss_name ) );
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
-  
+
 #if SCENE==4
   // spheres
 
@@ -577,7 +577,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   float3 pos = make_float3( 18.5556f, 25.1727f, 10.9409f);
   float3 pos1 = make_float3( 18.5556f, 25.1727f, 13.9409f);
   float3 pos2 = make_float3( 15.6368f, 27.5674f, 10.9431f);
-  
+
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -585,23 +585,23 @@ void Arealight::initScene( InitialCameraData& camera_data )
   */
   float3 axis1 = pos1-pos;
   float3 axis2 = pos2-pos;
-  
+
   float3 norm = cross(axis1,axis2);
-  
+
   AreaLight lights[] = {
-  { pos,
-  pos1,
-  pos2,
-  make_float3(1.0f, 1.0f, 1.0f)
-  }
+    { pos,
+    pos1,
+    pos2,
+    make_float3(1.0f, 1.0f, 1.0f)
+    }
   };
-  
+
   float3 normed_norm = normalize(norm);
   _context["lightnorm"]->setFloat(normed_norm);
-  
+
   _sigma = sqrt(length(norm)/4.0f);
   std::cout << "Sigma: " << _sigma << std::endl;
-  
+
   _context["light_sigma"]->setFloat(_sigma);
 
   _env_lights = lights;
@@ -996,7 +996,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
               avg_cur_spp += cur_spp_val;
               num_cur_avg++;
               if (cur_spp_val < 10)
-                  num_cur_low++;
+                num_cur_low++;
             }
           }
         }
@@ -1171,7 +1171,7 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
 
 #if SCENE==4
 void Arealight::createGeometry()
-//spheres
+  //spheres
 {
   //Make some temp geomgroups
   GeometryGroup ground_geom_group = _context->createGeometryGroup();
@@ -1218,7 +1218,7 @@ void Arealight::createGeometry()
 
   Matrix4x4 ground_xform = overall_xform;
   Matrix4x4 spheres_xform = overall_xform
-	  *Matrix4x4::translate(make_float3(0,20,0));
+    *Matrix4x4::translate(make_float3(0,20,0));
 
   //Load the OBJ's
   ObjLoader * ground_loader = new ObjLoader( texpath("spheres/ground.obj").c_str(), _context, ground_geom_group, ground_mat );
@@ -1294,8 +1294,8 @@ void Arealight::createGeometry()
   Matrix4x4 ground_xform2 = overall_xform
     * Matrix4x4::translate(make_float3(-20,1,-10))
     * Matrix4x4::scale(make_float3(100,10,100));
-	Matrix4x4 ground_xform3 = overall_xform
-	* Matrix4x4::translate(make_float3(-20,-3,-10));
+  Matrix4x4 ground_xform3 = overall_xform
+    * Matrix4x4::translate(make_float3(-20,-3,-10));
 
   Matrix4x4 rock_xform = overall_xform
     * Matrix4x4::translate(make_float3(-12.0,-0.5,-8.0))
