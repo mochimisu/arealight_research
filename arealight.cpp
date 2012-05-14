@@ -283,7 +283,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 3;
   _brute_rpp = 2000;
-  _max_rpp_pass = 10;
+  _max_rpp_pass = 25;
   float spp_mu = 2;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -366,13 +366,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _context->setMissProgram( 0, _context->createProgramFromPTXFile( _ptx_path, miss_name ) );
   const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
   _context["bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
-  
+
 #if SCENE==4
   // spheres
 
-  float3 pos = make_float3(-11, 14, 8.5);
-  float3 pos1 = make_float3(-8, 14, 8.5);
-  float3 pos2 = make_float3(-11, 17, 12.5);
+  float3 pos = make_float3(9, 20, 5);
+  float3 pos1 = make_float3(12, 20, 5);
+  float3 pos2 = make_float3(9, 23, 9);
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -422,9 +422,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( -5.1, 6.1, 10.1 ), // eye
+  camera_data = InitialCameraData( make_float3( 4.1, 7.1, 7.1 ), // eye
     //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
-    make_float3( 0, 2.5f,  0.0f ), // lookat
+    make_float3( 0, 3,  0.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
@@ -577,7 +577,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   float3 pos = make_float3( 18.5556f, 25.1727f, 10.9409f);
   float3 pos1 = make_float3( 18.5556f, 25.1727f, 13.9409f);
   float3 pos2 = make_float3( 15.6368f, 27.5674f, 10.9431f);
-  
+
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -585,23 +585,23 @@ void Arealight::initScene( InitialCameraData& camera_data )
   */
   float3 axis1 = pos1-pos;
   float3 axis2 = pos2-pos;
-  
+
   float3 norm = cross(axis1,axis2);
-  
+
   AreaLight lights[] = {
-  { pos,
-  pos1,
-  pos2,
-  make_float3(1.0f, 1.0f, 1.0f)
-  }
+    { pos,
+    pos1,
+    pos2,
+    make_float3(1.0f, 1.0f, 1.0f)
+    }
   };
-  
+
   float3 normed_norm = normalize(norm);
   _context["lightnorm"]->setFloat(normed_norm);
-  
+
   _sigma = sqrt(length(norm)/4.0f);
   std::cout << "Sigma: " << _sigma << std::endl;
-  
+
   _context["light_sigma"]->setFloat(_sigma);
 
   _env_lights = lights;
@@ -719,7 +719,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   //Resample
 #if 0
-  num_resample = 10;
+  num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
@@ -996,7 +996,7 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
               avg_cur_spp += cur_spp_val;
               num_cur_avg++;
               if (cur_spp_val < 10)
-                  num_cur_low++;
+                num_cur_low++;
             }
           }
         }
@@ -1171,46 +1171,70 @@ void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
 
 #if SCENE==4
 void Arealight::createGeometry()
-//spheres
+  //spheres
 {
   //Make some temp geomgroups
   GeometryGroup ground_geom_group = _context->createGeometryGroup();
-  GeometryGroup tentacles_geom_group = _context->createGeometryGroup();
-  GeometryGroup rock_geom_group = _context->createGeometryGroup();
+  GeometryGroup spheres_geom_group = _context->createGeometryGroup();
+  GeometryGroup spheres2_geom_group = _context->createGeometryGroup();
+  GeometryGroup cones_geom_group = _context->createGeometryGroup();
+  GeometryGroup torus_geom_group = _context->createGeometryGroup();
 
   //Set some materials
   Material ground_mat = _context->createMaterial();
   ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   ground_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  ground_mat["Kd"]->setFloat( 174.0/255.0,246.0/255.0,239.0/255.0 );
+  ground_mat["Kd"]->setFloat( 0.9f, 0.8f, 0.4f );
   ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   ground_mat["phong_exp"]->setFloat( 100.0f );
   ground_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
   ground_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
   ground_mat["obj_id"]->setInt(10);
 
-  Material tentacles_mat = _context->createMaterial();
-  tentacles_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  tentacles_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
-  tentacles_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  tentacles_mat["Kd"]->setFloat( 0.5, 0.15, 0.04 );
-  tentacles_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
-  tentacles_mat["phong_exp"]->setFloat( 100.0f );
-  tentacles_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
-  tentacles_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
-  tentacles_mat["obj_id"]->setInt(11);
+  Material spheres_mat = _context->createMaterial();
+  spheres_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  spheres_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  spheres_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres_mat["Kd"]->setFloat( 0.5, 0.15, 0.04 );
+  spheres_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres_mat["phong_exp"]->setFloat( 100.0f );
+  spheres_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres_mat["obj_id"]->setInt(11);
 
-  Material rock_mat = _context->createMaterial();
-  rock_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
-  rock_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
-  rock_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  rock_mat["Kd"]->setFloat( 0.7,0.7,0.7 );
-  rock_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
-  rock_mat["phong_exp"]->setFloat( 100.0f );
-  rock_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
-  rock_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
-  rock_mat["obj_id"]->setInt(12);
+  Material spheres2_mat = _context->createMaterial();
+  spheres2_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  spheres2_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  spheres2_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres2_mat["Kd"]->setFloat( 0.5, 0.15, 0.04 );
+  spheres2_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres2_mat["phong_exp"]->setFloat( 100.0f );
+  spheres2_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres2_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  spheres2_mat["obj_id"]->setInt(11);
+
+  Material cones_mat = _context->createMaterial();
+  cones_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  cones_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  cones_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  cones_mat["Kd"]->setFloat( 0.04, 0.14, 0.5 );
+  cones_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  cones_mat["phong_exp"]->setFloat( 100.0f );
+  cones_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  cones_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  cones_mat["obj_id"]->setInt(12);
+
+  Material torus_mat = _context->createMaterial();
+  torus_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
+  torus_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
+  torus_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
+  torus_mat["Kd"]->setFloat( 0.04, 0.5, 0.14 );
+  torus_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
+  torus_mat["phong_exp"]->setFloat( 100.0f );
+  torus_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
+  torus_mat["reflectivity_n"]->setFloat( 0.0f, 0.0f, 0.0f );
+  torus_mat["obj_id"]->setInt(13);
 
 
   //Transformations
@@ -1218,18 +1242,39 @@ void Arealight::createGeometry()
 
   Matrix4x4 ground_xform = overall_xform;
   Matrix4x4 spheres_xform = overall_xform
-	  *Matrix4x4::translate(make_float3(0,20,0));
+    *Matrix4x4::rotate(M_PI*0.6,make_float3(0,1,0))
+    *Matrix4x4::translate(make_float3(0,10,0));
+  Matrix4x4 cones_xform = overall_xform
+    *Matrix4x4::translate(make_float3(-40,10,40));
+  Matrix4x4 torus_xform = overall_xform
+    *Matrix4x4::translate(make_float3(10,30,40))
+    *Matrix4x4::rotate(3*M_PI/2, make_float3(0,1,0))
+    *Matrix4x4::rotate(M_PI/2, make_float3(1,0,0));
+  Matrix4x4 spheres2_xform;
+
+  cones_xform = spheres_xform;
+  torus_xform = spheres_xform;
+  spheres2_xform = spheres_xform;
 
   //Load the OBJ's
   ObjLoader * ground_loader = new ObjLoader( texpath("spheres/ground.obj").c_str(), _context, ground_geom_group, ground_mat );
   ground_loader->load(ground_xform);
-  ObjLoader * spheres_loader = new ObjLoader( texpath("spheres/spheres.obj").c_str(), _context, tentacles_geom_group, tentacles_mat );
+  ObjLoader * spheres_loader = new ObjLoader( texpath("spheres/spheres.obj").c_str(), _context, spheres_geom_group, spheres_mat );
   spheres_loader->load(spheres_xform);
+  ObjLoader * spheres2_loader = new ObjLoader( texpath("spheres/spheres2.obj").c_str(), _context, spheres2_geom_group, spheres2_mat );
+  spheres2_loader->load(spheres2_xform);
+  ObjLoader * cones_loader = new ObjLoader( texpath("spheres/cones.obj").c_str(), _context, cones_geom_group, cones_mat );
+  cones_loader->load(cones_xform);
+  ObjLoader * torus_loader = new ObjLoader( texpath("spheres/torus.obj").c_str(), _context, torus_geom_group, torus_mat );
+  torus_loader->load(torus_xform);
 
   //Make one big geom group
   GeometryGroup geom_group = _context->createGeometryGroup();
   appendGeomGroup(geom_group, ground_geom_group);
-  appendGeomGroup(geom_group, tentacles_geom_group);
+  appendGeomGroup(geom_group, spheres_geom_group);
+  appendGeomGroup(geom_group, spheres2_geom_group);
+  appendGeomGroup(geom_group, cones_geom_group);
+  appendGeomGroup(geom_group, torus_geom_group);
   //appendGeomGroup(geom_group, rock_geom_group);
 
   //geom_group->setChild(ct, global);
@@ -1293,7 +1338,8 @@ void Arealight::createGeometry()
 
   Matrix4x4 ground_xform2 = overall_xform
     * Matrix4x4::translate(make_float3(-20,1,-10))
-    * Matrix4x4::scale(make_float3(100,10,100));
+    * Matrix4x4::scale(make_float3(100,10,100));
+
 	Matrix4x4 ground_xform3 = overall_xform
 	* Matrix4x4::translate(make_float3(-20,-3,-10))
 	* Matrix4x4::scale(make_float3(0.5));
