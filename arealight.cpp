@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 2
+#define SCENE 1
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -370,9 +370,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #if SCENE==4
   // spheres
 
-  float3 pos = make_float3(9, 20, 5);
-  float3 pos1 = make_float3(12, 20, 5);
-  float3 pos2 = make_float3(9, 23, 9);
+  float3 pos = make_float3(4.5, 7.5, 7.5);
+  float3 pos1 = make_float3(7.5, 7.5, 7.5);
+  float3 pos2 = make_float3(4.5, 10.5, 12.5);
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -422,9 +422,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( 4.1, 7.1, 7.1 ), // eye
+  camera_data = InitialCameraData( make_float3( -3, 7.1, 6.1 ), // eye
     //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
-    make_float3( 0, 3,  0.0f ), // lookat
+    make_float3( 0, 5,  2.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
@@ -1240,7 +1240,8 @@ void Arealight::createGeometry()
   //Transformations
   Matrix4x4 overall_xform = Matrix4x4::scale(make_float3(0.1));
 
-  Matrix4x4 ground_xform = overall_xform;
+  Matrix4x4 ground_xform = overall_xform
+    *Matrix4x4::translate(make_float3(50,5,0));
   Matrix4x4 spheres_xform = overall_xform
     *Matrix4x4::rotate(M_PI*0.6,make_float3(0,1,0))
     *Matrix4x4::translate(make_float3(0,10,0));
@@ -1259,10 +1260,10 @@ void Arealight::createGeometry()
   //Load the OBJ's
   ObjLoader * ground_loader = new ObjLoader( texpath("spheres/ground.obj").c_str(), _context, ground_geom_group, ground_mat );
   ground_loader->load(ground_xform);
-  ObjLoader * spheres_loader = new ObjLoader( texpath("spheres/spheres.obj").c_str(), _context, spheres_geom_group, spheres_mat );
+  ObjLoader * spheres_loader = new ObjLoader( texpath("spheres/spheres3.obj").c_str(), _context, spheres_geom_group, spheres_mat );
   spheres_loader->load(spheres_xform);
-  ObjLoader * spheres2_loader = new ObjLoader( texpath("spheres/spheres2.obj").c_str(), _context, spheres2_geom_group, spheres2_mat );
-  spheres2_loader->load(spheres2_xform);
+  //ObjLoader * spheres2_loader = new ObjLoader( texpath("spheres/spheres2.obj").c_str(), _context, spheres2_geom_group, spheres2_mat );
+  //spheres2_loader->load(spheres2_xform);
   ObjLoader * cones_loader = new ObjLoader( texpath("spheres/cones.obj").c_str(), _context, cones_geom_group, cones_mat );
   cones_loader->load(cones_xform);
   ObjLoader * torus_loader = new ObjLoader( texpath("spheres/torus.obj").c_str(), _context, torus_geom_group, torus_mat );
@@ -1272,7 +1273,7 @@ void Arealight::createGeometry()
   GeometryGroup geom_group = _context->createGeometryGroup();
   appendGeomGroup(geom_group, ground_geom_group);
   appendGeomGroup(geom_group, spheres_geom_group);
-  appendGeomGroup(geom_group, spheres2_geom_group);
+  //appendGeomGroup(geom_group, spheres2_geom_group);
   appendGeomGroup(geom_group, cones_geom_group);
   appendGeomGroup(geom_group, torus_geom_group);
   //appendGeomGroup(geom_group, rock_geom_group);
@@ -1990,7 +1991,7 @@ int main( int argc, char** argv )
   GLUTDisplay::init( argc, argv );
 
   unsigned int width = 1080u, height = 720u;
-  //unsigned int width = 1600u, height = 800u;
+  //unsigned int width = 1600u, height = 1080u;
 
   std::string texture_path;
   for ( int i = 1; i < argc; ++i ) {
