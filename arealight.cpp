@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 3
+#define SCENE 2
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -283,7 +283,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 3;
   _brute_rpp = 2000;
-  _max_rpp_pass = 25;
+  _max_rpp_pass = 10;
   float spp_mu = 2;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -618,7 +618,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( 10.0f, 14.0f, -10.0f ), // eye
+  camera_data = InitialCameraData( make_float3( 10.0f, 12.0f, -9.0f ), // eye
     make_float3( 0.0f, 6.0f,  -7.0f ), // lookat
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
@@ -1340,9 +1340,9 @@ void Arealight::createGeometry()
     * Matrix4x4::translate(make_float3(-20,1,-10))
     * Matrix4x4::scale(make_float3(100,10,100));
 
-	Matrix4x4 ground_xform3 = overall_xform
-	* Matrix4x4::translate(make_float3(-20,-3,-10))
-	* Matrix4x4::scale(make_float3(0.5));
+  Matrix4x4 ground_xform3 = overall_xform
+    * Matrix4x4::translate(make_float3(-20,-3,-10))
+    * Matrix4x4::scale(make_float3(0.5));
 
   Matrix4x4 rock_xform = overall_xform
     * Matrix4x4::translate(make_float3(-12.0,-0.5,-8.0))
@@ -1605,7 +1605,7 @@ void Arealight::createGeometry()
   ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   ground_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  ground_mat["Kd"]->setFloat( 0.320f, 0.470f, 0.250f );
+  ground_mat["Kd"]->setFloat( 0.620f, 0.770f, 0.650f );
   ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   ground_mat["phong_exp"]->setFloat( 100.0f );
   ground_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -1613,10 +1613,10 @@ void Arealight::createGeometry()
   ground_mat["obj_id"]->setInt(13);
 
   //Transformations
-  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -5.0))
+  Matrix4x4 overall_xform = Matrix4x4::translate(make_float3(-2.0f, 2.0f, -6.0))
     * Matrix4x4::rotate(-65.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
     * Matrix4x4::rotate(-15.0f * M_PI/180.0f, make_float3(0.0f, 1.0f, 0.0f))
-    * Matrix4x4::scale(make_float3(10.0f,10.0f,10.0f));
+    * Matrix4x4::scale(make_float3(12.0f,12.0f,12.0f));
   Matrix4x4 balance_xform = overall_xform 
     * Matrix4x4::translate(make_float3(0.0f, 0.015f, 0.0f));
   Matrix4x4 street_lamp_xform = overall_xform; 
