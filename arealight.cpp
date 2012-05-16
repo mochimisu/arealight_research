@@ -490,9 +490,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( -6.1, 12.1, -5.1 ), // eye
+  camera_data = InitialCameraData( make_float3( -2.1, 8.0, -10 ), // eye
     //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
-    make_float3( -20.0f, 2.0f,  -15.0f ), // lookat
+    make_float3( -20.0f, 4.0f,  -13.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
