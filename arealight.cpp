@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 1
+#define SCENE 2
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -1605,8 +1605,9 @@ void Arealight::createGeometry()
   Material ground_mat = _context->createMaterial();
   ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
-  ground_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  ground_mat["Kd"]->setFloat( 0.620f, 0.770f, 0.650f );
+  ground_mat["Ka"]->setFloat( 0.5f, 0.5f, 0.5f );
+  //ground_mat["Kd"]->setFloat( 0.620f, 0.770f, 0.650f );
+  ground_mat["Kd"]->setFloat( 230.0/255.0,1,230.0/255.0 );
   ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   ground_mat["phong_exp"]->setFloat( 100.0f );
   ground_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
