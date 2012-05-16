@@ -381,7 +381,7 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
   float& sum_weight, const optix::float3& cur_world_loc, float3 cur_n,
   float wxf, int i, int j, const optix::size_t2& buf_size, 
   unsigned int pass ) {
-    const float dist_scale_threshold = 10.0f;
+    const float dist_scale_threshold = 100.0f;
     const float dist_threshold = 1.0f;
     const float angle_threshold = 20.0f * M_PI/180.0f;
 

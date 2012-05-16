@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 2
+#define SCENE 3
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -1342,8 +1342,8 @@ void Arealight::createGeometry()
     * Matrix4x4::scale(make_float3(100,10,100));
 
   Matrix4x4 ground_xform3 = overall_xform
-    * Matrix4x4::translate(make_float3(-20,-3,-10))
-    * Matrix4x4::scale(make_float3(0.5));
+    * Matrix4x4::translate(make_float3(-20,-3,-10));
+    //* Matrix4x4::scale(make_float3(0.5));
 
   Matrix4x4 rock_xform = overall_xform
     * Matrix4x4::translate(make_float3(-12.0,-0.5,-8.0))
