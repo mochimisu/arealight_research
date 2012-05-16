@@ -100,10 +100,15 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
   if (sample > 0.9999) {
     return 0.0;
   }
+
+  return exp(-3*sample);
+
+  /*
   float scaled = sample*64;
   int index = (int) scaled;
   float weight = scaled - index;
   return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
+  */
 }
 
 
