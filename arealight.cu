@@ -284,7 +284,7 @@ RT_PROGRAM void pinhole_camera_continue_sample() {
   float2 cur_slope = slope[launch_index];
   float wxf = computeWxf(cur_slope.y);
   float target_spp = computeSpp(cur_slope.x, cur_slope.y, wxf);
-  target_spp = 10000000.0;
+  //target_spp = 10000000.0;
   //target_spp = 200000;
   spp[launch_index] = target_spp;
   float cur_spp = spp_cur[launch_index];

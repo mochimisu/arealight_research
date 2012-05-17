@@ -747,7 +747,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     static_cast<unsigned int>(buffer_height) );
 
   //Resample
-#if 1
+#if 0
   num_resample = 40;
   for(int i = 0; i < num_resample; i++)
 #endif
