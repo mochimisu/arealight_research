@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 3
+#define SCENE 4
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -262,7 +262,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["obj_id_b"]->set( obj_id );
 
-  _blur_occ = 1;
+  _blur_occ = 0;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -284,7 +284,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _normal_rpp = 3;
   _brute_rpp = 2000;
   _max_rpp_pass = 10;
-  float spp_mu = 2;
+  float spp_mu = 2.52;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -370,9 +370,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #if SCENE==4
   // spheres
 
-  float3 pos = make_float3(4.5, 7.5, 7.5);
-  float3 pos1 = make_float3(7.5, 7.5, 7.5);
-  float3 pos2 = make_float3(4.5, 10.5, 12.5);
+  float3 pos = make_float3(6, 8, 7.5);
+  float3 pos1 = make_float3(9, 8, 7.5);
+  float3 pos2 = make_float3(6, 11, 12.5);
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -422,9 +422,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
 
   // Set up camera
-  camera_data = InitialCameraData( make_float3( -3, 7.1, 6.1 ), // eye
+  camera_data = InitialCameraData( make_float3( 0.5, 9.78, 6.28 ), // eye
     //camera_data = InitialCameraData( make_float3( -5.1f, 2.1f, -3.1f ), // eye
-    make_float3( 0, 5,  2.0f ), // lookat
+    make_float3( 1, 6.5,  2.0f ), // lookat
     //make_float3( -4.0f, 0.0f,  -2.0f ), // looka
     make_float3( 0.0f, 1.0f,  0.0f ), // up
     60 );                             // vfov
@@ -719,7 +719,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   //Resample
 #if 0
-  num_resample = 20;
+  num_resample = 40;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
@@ -1196,7 +1196,7 @@ void Arealight::createGeometry()
   spheres_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   spheres_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   spheres_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  spheres_mat["Kd"]->setFloat( 0.5, 0.15, 0.04 );
+  spheres_mat["Kd"]->setFloat( 0.75, 0.15, 0.04 );
   spheres_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   spheres_mat["phong_exp"]->setFloat( 100.0f );
   spheres_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -1241,7 +1241,10 @@ void Arealight::createGeometry()
   Matrix4x4 overall_xform = Matrix4x4::scale(make_float3(0.1));
 
   Matrix4x4 ground_xform = overall_xform
-    *Matrix4x4::translate(make_float3(50,5,0));
+    *Matrix4x4::rotate(14*M_PI/180.0, make_float3(1,0,0))
+    *Matrix4x4::scale(make_float3(2,2,2))
+    *Matrix4x4::translate(make_float3(7,-10,-39))
+    *Matrix4x4::rotate(10*M_PI/180.0, make_float3(0,1,0));
   Matrix4x4 spheres_xform = overall_xform
     *Matrix4x4::rotate(M_PI*0.6,make_float3(0,1,0))
     *Matrix4x4::translate(make_float3(0,10,0));
@@ -1254,7 +1257,7 @@ void Arealight::createGeometry()
   Matrix4x4 spheres2_xform;
 
   cones_xform = spheres_xform;
-  torus_xform = spheres_xform;
+  torus_xform = Matrix4x4::translate(make_float3(-1.0,1.7,0)) * spheres_xform;
   spheres2_xform = spheres_xform;
 
   //Load the OBJ's
