@@ -27,8 +27,7 @@
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
-#define SPP_STATS
-#define SCENE 1
+#define SCENE 3
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -125,6 +124,7 @@ private:
 
   float _anim_t;
   double _previous_frame_time;
+  bool _is_anim;
 
 };
 
@@ -135,6 +135,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 {
   _anim_t = 0;
   sutilCurrentTime(&_previous_frame_time);
+  _is_anim = false;
   // set up path to ptx file associated with tutorial number
   std::stringstream ss;
   ss << "arealight.cu";
@@ -167,7 +168,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   shadow_rng_seeds->unmap();
 
   // BRDF buffer
-  _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT3, _width, _height );
+  _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   _context["brdf"]->set( _brdf );
 
   // Occlusion buffer
@@ -194,7 +195,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #endif
   _context["spp_cur"]->set( spp_cur );
 
-  Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT2, _width, _height );
+  Buffer slope = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
   _context["slope"]->set( slope );
 
   // gauss values
@@ -695,12 +696,22 @@ void Arealight::trace( const RayGenCameraData& camera_data )
 
   _previous_frame_time = t;
 
-  _anim_t += 0.6 * time_elapsed;
+  if (_is_anim)
+    _anim_t += 0.6 * time_elapsed;
   float3 eye, u, v, w;
   eye.x = (float) (camera_data.eye.x * sin(_anim_t));
-  eye.y = (float)( camera_data.eye.y + sin( _anim_t*1.5 ) );
+  eye.y = (float)( 0.5 + camera_data.eye.y + sin( _anim_t*1.5 ) );
   eye.z = (float)( 0.5+camera_data.eye.z*cos( _anim_t ) );
-  PinholeCamera pc( eye, make_float3(0), make_float3(0,1,0), 60.f, 60.f/(640.0/480.0) );
+  float3 lookat = make_float3(0);
+  
+#if SCENE==2
+  lookat = make_float3( 0.0f, 6.0f,  -7.0f ); // lookat
+#endif
+#if SCENE==3
+  lookat = make_float3( -20.0f, 4.0f,  -13.0f ); // lookat
+#endif
+
+  PinholeCamera pc( eye, lookat, make_float3(0,1,0), 60.f, 60.f/(640.0/480.0) );
   pc.getEyeUVW( eye, u, v, w );
   _context["eye"]->setFloat( eye );
   _context["U"]->setFloat( u );
@@ -1191,8 +1202,18 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
     _context["U"]->setFloat( camera_data.U );
     _context["V"]->setFloat( camera_data.V );
     _context["W"]->setFloat( camera_data.W ); */
+  case 'R':
+  case 'r':
+    sutilCurrentTime(&_previous_frame_time);
+    _anim_t = 0;
+    return true;
+  case 'T':
+  case 't':
+    _is_anim = 1-_is_anim;
+    return true;
   }
   return false;
+
 }
 
 void appendGeomGroup(GeometryGroup& target, GeometryGroup& source)
