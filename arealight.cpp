@@ -27,7 +27,7 @@
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
 #define SPP_STATS
-#define SCENE 4
+#define SCENE 1
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -41,11 +41,6 @@
 #endif
 
 using namespace optix;
-
-static float rand_range(float min, float max)
-{
-  return min + (max - min) * (float) rand() / (float) RAND_MAX;
-}
 
 class Arealight : public SampleScene
 {
@@ -127,6 +122,8 @@ private:
   int _benchmark_iter;
   std::vector<double> _benchmark_timings;
 
+  float _anim_t;
+
 };
 
 Arealight* _scene;
@@ -134,6 +131,7 @@ int output_num = 0;
 
 void Arealight::initScene( InitialCameraData& camera_data )
 {
+  _anim_t = 0;
   // set up path to ptx file associated with tutorial number
   std::stringstream ss;
   ss << "arealight.cu";
@@ -262,7 +260,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["obj_id_b"]->set( obj_id );
 
-  _blur_occ = 0;
+  _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -681,7 +679,17 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     resetAccumulation();
     _benchmark_iter = 0;
   }
+
+
+  _anim_t += 0.1;
+  float3 eye;
+  eye.x = (float) (2.3 * sin(_anim_t));
+  eye.y = (float)( 2 + sin( _anim_t*1.5 ) );
+  eye.z = (float)( 0.5+2.1*cos( _anim_t ) );
+
+
   _context["eye"]->setFloat( camera_data.eye );
+  _context["eye"]->setFloat( eye );
   _context["U"]->setFloat( camera_data.U );
   _context["V"]->setFloat( camera_data.V );
   _context["W"]->setFloat( camera_data.W );
@@ -730,7 +738,9 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 
+  
   //Display
+  /*
   if (_view_mode) {
     if (_view_mode == 2) {
       //scale
@@ -755,8 +765,12 @@ void Arealight::trace( const RayGenCameraData& camera_data )
       slope->unmap();
     }
   }
+  */
   _context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
+
+
+
 }
 
 
@@ -1995,7 +2009,8 @@ int main( int argc, char** argv )
   GLUTDisplay::init( argc, argv );
 
   //unsigned int width = 1080u, height = 720u;
-  unsigned int width = 1600u, height = 1080u;
+  //unsigned int width = 1600u, height = 1080u;
+  unsigned int width = 640u, height = 480u;
 
   std::string texture_path;
   for ( int i = 1; i < argc; ++i ) {
@@ -2033,7 +2048,7 @@ int main( int argc, char** argv )
     _scene->setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
-    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
+    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDProgressive);// GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
