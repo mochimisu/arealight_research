@@ -101,7 +101,7 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
     return 0.0;
   }
 
-  return exp(-3*sample);
+  return exp(-6*sample);
 
   /*
   float scaled = sample*64;
@@ -284,8 +284,8 @@ RT_PROGRAM void pinhole_camera_continue_sample() {
   float2 cur_slope = slope[launch_index];
   float wxf = computeWxf(cur_slope.y);
   float target_spp = computeSpp(cur_slope.x, cur_slope.y, wxf);
-  //target_spp = 10000000.0;
-  //target_spp = 90;
+  target_spp = 10000000.0;
+  //target_spp = 200000;
   spp[launch_index] = target_spp;
   float cur_spp = spp_cur[launch_index];
 
@@ -387,7 +387,7 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
   float& sum_weight, const optix::float3& cur_world_loc, float3 cur_n,
   float wxf, int i, int j, const optix::size_t2& buf_size, 
   unsigned int pass ) {
-    const float dist_scale_threshold = 100.0f;
+    const float dist_scale_threshold = 10.0f;
     const float dist_threshold = 1.0f;
     const float angle_threshold = 20.0f * M_PI/180.0f;
 
@@ -483,42 +483,6 @@ RT_PROGRAM void occlusion_filter_second_pass() {
   vis[launch_index].x = blurred_vis;
 }
 
-__device__ __inline__ void sppFilterMax(float& cur_spp, unsigned int i, unsigned int j,
-  const optix::size_t2& buf_size, unsigned int pass) {
-    if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
-      uint2 target_index = make_uint2(i,j);
-      float target_spp;
-      if (pass == 0)
-        target_spp = spp[target_index];
-      else
-        target_spp = spp_filter1d[target_index];
-      cur_spp = max(cur_spp, target_spp);
-    }
-}
-
-RT_PROGRAM void spp_filter_first_pass() {
-  float cur_spp = spp[launch_index];
-  size_t2 buf_size = spp.size();
-  for (int i = -5; i < 5; i++) {
-    sppFilterMax(cur_spp, launch_index.x + i, launch_index.y, buf_size, 1);
-  }
-  spp_filter1d[launch_index] = cur_spp;
-  return;
-}
-
-RT_PROGRAM void spp_filter_second_pass() {
-  float cur_spp = spp_filter1d[launch_index];
-  size_t2 buf_size = spp.size();
-  for (int i = -5; i < 5; i++) {
-    sppFilterMax(cur_spp, launch_index.x, launch_index.y + i, buf_size, 1);
-  }
-  //if (cur_spp > 1) 
-  //  use_filter_occ[launch_index] |= 1;
-
-  //spp[launch_index] = cur_spp;
-  return;
-}
-
 __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt, int obj_id,
   unsigned int i, unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {
     float2 output_slope = cur_slope;
@@ -577,59 +541,6 @@ RT_PROGRAM void s1s2_filter_second_pass() {
   return;
 }
 
-
-__device__ __inline__ float2 s1s2FilterGauss(float2& cur_slope, 
-  float2& cur_slope_sum, float2& cur_wieght_sum, unsigned int i,
-  unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {
-    float2 output_slope = cur_slope;
-    if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
-      uint2 target_index = make_uint2(i,j);
-      float2 target_slope;
-      if (pass == 0) {
-        target_slope = slope[target_index];
-      }
-      else {
-        target_slope = slope_filter1d[target_index];
-      }
-      output_slope.x = max(cur_slope.x, target_slope.x);
-      output_slope.y = min(cur_slope.y, target_slope.y);
-    }
-
-    return output_slope;
-}
-
-
-RT_PROGRAM void s1s2_filter_third_pass() {
-  float2 cur_slope = slope[launch_index];
-  size_t2 buf_size = slope.size();
-  float2 cur_slope_sum = make_float2(0.0);
-  float2 cur_weight_sum = make_float2(0.0);
-  for (int i = -5; i < 5; i++) {
-    s1s2FilterGauss(cur_slope, cur_slope_sum, cur_weight_sum, launch_index.x + i, launch_index.y, buf_size, 0);
-  }
-  if (cur_weight_sum.x > 0.001f)
-    cur_slope.x = cur_slope_sum.x / cur_weight_sum.x;
-  if (cur_weight_sum.y > 0.001f)
-    cur_slope.y = cur_slope_sum.y / cur_weight_sum.y;
-  slope_filter1d[launch_index] = cur_slope;
-  return;
-}
-
-RT_PROGRAM void s1s2_filter_fourth_pass() {
-  float2 cur_slope = slope_filter1d[launch_index];
-  size_t2 buf_size = slope.size();
-  float2 cur_slope_sum = make_float2(0.0);
-  float2 cur_weight_sum = make_float2(0.0);
-  for (int i = -5; i < 5; i++) {
-    cur_slope = s1s2FilterGauss(cur_slope, cur_slope_sum, cur_weight_sum, launch_index.x, launch_index.y + i, buf_size, 1);
-  }
-  if (cur_weight_sum.x > 0.001f)
-    cur_slope.x = cur_slope_sum.x / cur_weight_sum.x;
-  if (cur_weight_sum.y > 0.001f)
-    cur_slope.y = cur_slope_sum.y / cur_weight_sum.y;
-  //slope[launch_index] = cur_slope;
-  return;
-}
 //
 // Returns solid color for miss rays
 //

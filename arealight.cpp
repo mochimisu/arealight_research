@@ -27,7 +27,7 @@
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
-#define SCENE 3
+#define SCENE 4
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -36,6 +36,7 @@
 //#define BENCHMARK_NUM 100
 
 //Guh, just to measure time...
+#define SPP_STATS
 #ifdef WINDOWS_TIME
 #include <WinBase.h>
 #endif
@@ -143,7 +144,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // context 
   _context->setRayTypeCount( 2 );
-  _context->setEntryPointCount( 9 );
+  _context->setEntryPointCount( 7 );
   _context->setStackSize( 8000 );
 
   _context["max_depth"]->setInt(100);
@@ -168,7 +169,11 @@ void Arealight::initScene( InitialCameraData& camera_data )
   shadow_rng_seeds->unmap();
 
   // BRDF buffer
+#ifdef SPP_STATS
+  _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT3, _width, _height );
+#else
   _brdf = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
+#endif
   _context["brdf"]->set( _brdf );
 
   // Occlusion buffer
@@ -264,7 +269,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["obj_id_b"]->set( obj_id );
 
-  _blur_occ = 1;
+  _blur_occ = 0;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -286,7 +291,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _normal_rpp = 3;
   _brute_rpp = 2000;
   _max_rpp_pass = 10;
-  float spp_mu = 2.52;
+  float spp_mu = 2;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
   _context["brute_rpp"]->setUint(_brute_rpp);
@@ -335,16 +340,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Program second_s1s2_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
     second_pass_s1s2_filter_name );
   _context->setRayGenerationProgram( 5, second_s1s2_filter_program );
-
-  // SPP Filter programs
-  std::string first_pass_spp_filter_name = "spp_filter_first_pass";
-  Program first_spp_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-    first_pass_spp_filter_name );
-  _context->setRayGenerationProgram( 7, first_spp_filter_program );
-  std::string second_pass_spp_filter_name = "spp_filter_second_pass";
-  Program second_spp_filter_program = _context->createProgramFromPTXFile( _ptx_path, 
-    second_pass_spp_filter_name );
-  _context->setRayGenerationProgram( 8, second_spp_filter_program );
 
 
   // Display program
@@ -726,6 +721,7 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context["V"]->setFloat( camera_data.V );
   _context["W"]->setFloat( camera_data.W );
   */
+ 
   // do i need to reseed?
   Buffer shadow_rng_seeds = _context["shadow_rng_seeds"]->getBuffer();
   uint2* seeds = reinterpret_cast<uint2*>( shadow_rng_seeds->map() );
@@ -750,15 +746,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 
-  //Filter spp
-  _context->launch( 7, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  _context->launch( 8, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-
-
   //Resample
-#if 0
+#if 1
   num_resample = 40;
   for(int i = 0; i < num_resample; i++)
 #endif
@@ -1252,7 +1241,7 @@ void Arealight::createGeometry()
   spheres_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   spheres_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
   spheres_mat["Ka"]->setFloat( 0.0f, 0.0f, 0.0f );
-  spheres_mat["Kd"]->setFloat( 0.75, 0.15, 0.04 );
+  spheres_mat["Kd"]->setFloat( 0.85, 0.35, 0.04 );
   spheres_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
   spheres_mat["phong_exp"]->setFloat( 100.0f );
   spheres_mat["reflectivity"]->setFloat( 0.0f, 0.0f, 0.0f );
@@ -2090,7 +2079,7 @@ int main( int argc, char** argv )
     _scene->setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
-    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDProgressive);// GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
+    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
