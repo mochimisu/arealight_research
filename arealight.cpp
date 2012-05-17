@@ -22,6 +22,7 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <Mouse.h>
 
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
@@ -123,6 +124,7 @@ private:
   std::vector<double> _benchmark_timings;
 
   float _anim_t;
+  double _previous_frame_time;
 
 };
 
@@ -132,6 +134,7 @@ int output_num = 0;
 void Arealight::initScene( InitialCameraData& camera_data )
 {
   _anim_t = 0;
+  sutilCurrentTime(&_previous_frame_time);
   // set up path to ptx file associated with tutorial number
   std::stringstream ss;
   ss << "arealight.cu";
@@ -681,19 +684,37 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   }
 
 
-  _anim_t += 0.1;
-  float3 eye;
-  eye.x = (float) (2.3 * sin(_anim_t));
-  eye.y = (float)( 2 + sin( _anim_t*1.5 ) );
-  eye.z = (float)( 0.5+2.1*cos( _anim_t ) );
+  double t;
+  if(GLUTDisplay::getContinuousMode() != GLUTDisplay::CDNone) {
+    sutilCurrentTime(&t);
+  } else {
+    t = _previous_frame_time;
+  }
+  
+  double time_elapsed = t - _previous_frame_time;
 
+  _previous_frame_time = t;
 
-  _context["eye"]->setFloat( camera_data.eye );
+  _anim_t += 0.6 * time_elapsed;
+  float3 eye, u, v, w;
+  eye.x = (float) (camera_data.eye.x * sin(_anim_t));
+  eye.y = (float)( camera_data.eye.y + sin( _anim_t*1.5 ) );
+  eye.z = (float)( 0.5+camera_data.eye.z*cos( _anim_t ) );
+  PinholeCamera pc( eye, make_float3(0), make_float3(0,1,0), 60.f, 60.f/(640.0/480.0) );
+  pc.getEyeUVW( eye, u, v, w );
   _context["eye"]->setFloat( eye );
+  _context["U"]->setFloat( u );
+  _context["V"]->setFloat( v );
+  _context["W"]->setFloat( w );
+  _camera_changed = true;
+
+
+  /*
+  _context["eye"]->setFloat( camera_data.eye );
   _context["U"]->setFloat( camera_data.U );
   _context["V"]->setFloat( camera_data.V );
   _context["W"]->setFloat( camera_data.W );
-
+  */
   // do i need to reseed?
   Buffer shadow_rng_seeds = _context["shadow_rng_seeds"]->getBuffer();
   uint2* seeds = reinterpret_cast<uint2*>( shadow_rng_seeds->map() );
