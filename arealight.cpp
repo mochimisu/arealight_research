@@ -262,7 +262,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["obj_id_b"]->set( obj_id );
 
-  _blur_occ = 1;
+  _blur_occ = 0;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -1994,8 +1994,8 @@ int main( int argc, char** argv )
 {
   GLUTDisplay::init( argc, argv );
 
-  unsigned int width = 1080u, height = 720u;
-  //unsigned int width = 1600u, height = 1080u;
+  //unsigned int width = 1080u, height = 720u;
+  unsigned int width = 1600u, height = 1080u;
 
   std::string texture_path;
   for ( int i = 1; i < argc; ++i ) {
