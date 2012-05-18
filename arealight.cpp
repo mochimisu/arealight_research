@@ -27,7 +27,7 @@
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
-#define SCENE 4
+#define SCENE 1
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -126,6 +126,11 @@ private:
   float _anim_t;
   double _previous_frame_time;
   bool _is_anim;
+
+  Transform _trans;
+  Geometry _anim_geom;
+  GeometryGroup _anim_geom_group;
+  Group _top_grp;
 
 };
 
@@ -697,8 +702,19 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   eye.x = (float) (camera_data.eye.x * sin(_anim_t));
   eye.y = (float)( 0.5 + camera_data.eye.y + sin( _anim_t*1.5 ) );
   eye.z = (float)( 0.5+camera_data.eye.z*cos( _anim_t ) );
+  eye = camera_data.eye;
   float3 lookat = make_float3(0);
   
+#if SCENE==1
+  optix::Matrix4x4 tr = optix::Matrix4x4::translate(make_float3(0,cos(_anim_t),0));
+  _trans->setMatrix( false, tr.getData(), 0);
+  
+  //_anim_geom->markDirty();
+  //_anim_geom_group->getAcceleration()->markDirty();
+  _top_grp->getAcceleration()->markDirty();
+  
+#endif
+
 #if SCENE==2
   lookat = make_float3( 0.0f, 6.0f,  -7.0f ); // lookat
 #endif
@@ -1440,6 +1456,7 @@ void Arealight::createGeometry()
   Program any_hit = _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow");
 
   //Make some temp geomgroups
+  _top_grp = _context->createGroup();
   GeometryGroup floor_geom_group = _context->createGeometryGroup();
   GeometryGroup grid1_geom_group = _context->createGeometryGroup();
   GeometryGroup grid3_geom_group = _context->createGeometryGroup();
@@ -1586,11 +1603,26 @@ void Arealight::createGeometry()
   //geom_group->setChild( 3, grid3_geom_group->getChild(0) );
 
   //appendGeomGroup(geom_group, floor_geom_group);
+
+  _trans = _context->createTransform();
+
+  grid2_geom_group->getAcceleration()->setProperty("refit", "1");
+
+  _anim_geom = grid2_geom_group->getChild(0)->getGeometry();
+  _anim_geom_group = grid2_geom_group;
+  
+
+  optix::Matrix4x4 test = optix::Matrix4x4::translate(make_float3(0,10,0));
+  _trans->setMatrix( false, test.getData(), 0);
+  _trans->setChild( grid2_geom_group );
+
+  grid2_geom_group->getAcceleration()->markDirty();
+
   std::cout << "asdf" << std::endl;
   std::cout << geom_group->getChildCount() << std::endl;
   appendGeomGroup(geom_group, floor_geom_group);
   appendGeomGroup(geom_group, grid1_geom_group);
-  appendGeomGroup(geom_group, grid2_geom_group);
+  //appendGeomGroup(geom_group, grid2_geom_group);
   appendGeomGroup(geom_group, grid3_geom_group);
   //geom_group->setChild(ct, global);
   //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
@@ -1600,9 +1632,23 @@ void Arealight::createGeometry()
   //std::cout << accl->getBuilder() << std::endl;
   //geom_group->setAcceleration( grid3_geom_group->getAcceleration() );
 
+  //int ct = geom_group->getChildCount();
+  //geom_group->setChildCount(ct+1);
+  //geom_group->setChild(ct, _trans.get() );
+
+  _top_grp->setChildCount(2);
+  _top_grp->setChild(0, geom_group);
+  _top_grp->setChild(1, _trans);
+
+  _top_grp->setAcceleration(_context->createAcceleration("Bvh", "Bvh") );
+  _top_grp->getAcceleration()->setProperty("refit", "1");
+
   //Set the geom group
-  _context["top_object"]->set( geom_group );
-  _context["top_shadower"]->set( geom_group );
+  _context["top_object"]->set( _top_grp );
+  _context["top_shadower"]->set( _top_grp );
+
+  //_context["top_object"]->set( grid2_geom_group );
+  //_context["top_shadower"]->set( grid2_geom_group );
 }
 #endif
 #if SCENE==2
@@ -2079,7 +2125,7 @@ int main( int argc, char** argv )
     _scene->setDimensions( width, height );
     //dont time out progressive
     GLUTDisplay::setProgressiveDrawingTimeout(0.0);
-    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
+    GLUTDisplay::run( title.str(), _scene, GLUTDisplay::CDProgressive ); //GLUTDisplay::CDNone );//GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
