@@ -128,6 +128,7 @@ private:
   bool _is_anim;
 
   Transform _trans;
+  Transform _trans2;
   Geometry _anim_geom;
   GeometryGroup _anim_geom_group;
   Group _top_grp;
@@ -141,7 +142,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 {
   _anim_t = 0;
   sutilCurrentTime(&_previous_frame_time);
-  _is_anim = false;
+  _is_anim = true;
   // set up path to ptx file associated with tutorial number
   std::stringstream ss;
   ss << "arealight.cu";
@@ -274,7 +275,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   Buffer obj_id = _context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
   _context["obj_id_b"]->set( obj_id );
 
-  _blur_occ = 0;
+  _blur_occ = 1;
   _context["blur_occ"]->setUint(_blur_occ);
 
   _blur_wxf = 0;
@@ -372,9 +373,9 @@ void Arealight::initScene( InitialCameraData& camera_data )
 #if SCENE==4
   // spheres
 
-  float3 pos = make_float3(6, 8, 7.5);
-  float3 pos1 = make_float3(9, 8, 7.5);
-  float3 pos2 = make_float3(6, 11, 12.5);
+  float3 pos = make_float3(4.5, 8, 7.5);
+  float3 pos1 = make_float3(7.5, 8, 7.5);
+  float3 pos2 = make_float3(4.5, 11, 12.5);
   /*
   float3 pos = make_float3(-4.5, 16, 8);
   float3 pos1 = make_float3(3.5, 16, 8);
@@ -697,29 +698,70 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _previous_frame_time = t;
 
   if (_is_anim)
-    _anim_t += 0.6 * time_elapsed;
+    _anim_t += 0.03; // 0.6 * time_elapsed;
   float3 eye, u, v, w;
   eye.x = (float) (camera_data.eye.x * sin(_anim_t));
-  eye.y = (float)( 0.5 + camera_data.eye.y + sin( _anim_t*1.5 ) );
+  eye.y = (float)( 0.2 + camera_data.eye.y + cos( _anim_t*1.5 ) );
   eye.z = (float)( 0.5+camera_data.eye.z*cos( _anim_t ) );
-  eye = camera_data.eye;
+  //eye = camera_data.eye;
   float3 lookat = make_float3(0);
+//#define CHANGE_LIGHT_SIZE
+#ifdef CHANGE_LIGHT_SIZE
+  _context["light_sigma"]->setFloat(2.2+1*sin(_anim_t));
+#endif
+
+//#define MOVE_LIGHT
+#ifdef MOVE_LIGHT
+float3 d = make_float3(0.15*sin(_anim_t/1.0),0.2*cos(_anim_t/1.0),0.1*sin(_anim_t/1.2));
+AreaLight* lights = reinterpret_cast<AreaLight*>(light_buffer->map());
+lights[0].v1 -= d;
+lights[0].v2 -= d;
+lights[0].v3 -= d;
+
+light_buffer->unmap();
+
+//_camera_changed = true;
+#endif
+
   
 #if SCENE==1
-  optix::Matrix4x4 tr = optix::Matrix4x4::translate(make_float3(0,cos(_anim_t),0));
+  optix::Matrix4x4 tr = optix::Matrix4x4::rotate(sin(_anim_t/6.0)*M_PI,make_float3(0,1,0))
+    *optix::Matrix4x4::translate(make_float3(0,0.2+0.3*sin(_anim_t),0));
+
+  optix::Matrix4x4 tr2 = optix::Matrix4x4::rotate(-M_PI/6+cos(_anim_t*2)/2, make_float3(1,0,0));
+#define MOVE_GEOM
+#ifdef MOVE_GEOM
   _trans->setMatrix( false, tr.getData(), 0);
-  
-  //_anim_geom->markDirty();
-  //_anim_geom_group->getAcceleration()->markDirty();
+  _trans2->setMatrix( false, tr2.getData(), 0);
   _top_grp->getAcceleration()->markDirty();
+#endif
   
 #endif
 
 #if SCENE==2
-  lookat = make_float3( 0.0f, 6.0f,  -7.0f ); // lookat
+  lookat = make_float3( -5.0f, 2.0f,  -12.0f ); // lookat
+  eye.x = (float) (camera_data.eye.x * sin(_anim_t/2));
+  eye.y = (float)( 8.5 - 5*cos( _anim_t/2 ) );
+  eye.z = (float)( 0.5+camera_data.eye.z*cos( _anim_t/2 ) );
 #endif
 #if SCENE==3
-  lookat = make_float3( -20.0f, 4.0f,  -13.0f ); // lookat
+  lookat = make_float3( -20.0f, 4.0f,  -13.0f ); // lookat
+  eye.x = (float) (-20.0f + 20* sin(_anim_t));
+  eye.y = (float)( 4.0f + 5*sin( _anim_t*1.5 ) );
+  eye.z = (float)( -13.0f + 20*cos( _anim_t ) );
+#define MOVE_GEOM
+#ifdef MOVE_GEOM
+  Matrix4x4 tr = Matrix4x4::translate(make_float3(0,-5,0))
+    * Matrix4x4::translate(make_float3(-10,0,-2))
+    * Matrix4x4::rotate(-10*M_PI/180, make_float3(0,0,1))
+    * Matrix4x4::rotate(35*M_PI/180, make_float3(0,1,0))
+    * Matrix4x4::scale(make_float3(2))
+    * Matrix4x4::translate(make_float3(-1.558, 0, -3.667))
+    * Matrix4x4::rotate(_anim_t,make_float3(0,1,0))
+    * Matrix4x4::translate(make_float3(1.558, 0, 3.667));
+  _trans->setMatrix( false, tr.getData(), 0);
+  _top_grp->getAcceleration()->markDirty();
+#endif
 #endif
 
   PinholeCamera pc( eye, lookat, make_float3(0,1,0), 60.f, 60.f/(640.0/480.0) );
@@ -728,16 +770,17 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context["U"]->setFloat( u );
   _context["V"]->setFloat( v );
   _context["W"]->setFloat( w );
-  _camera_changed = true;
+  //_camera_changed = true;
 
 
-  /*
+//#define MOVE_CAMERA
+#ifndef MOVE_CAMERA
   _context["eye"]->setFloat( camera_data.eye );
   _context["U"]->setFloat( camera_data.U );
   _context["V"]->setFloat( camera_data.V );
   _context["W"]->setFloat( camera_data.W );
-  */
- 
+#endif
+
   // do i need to reseed?
   Buffer shadow_rng_seeds = _context["shadow_rng_seeds"]->getBuffer();
   uint2* seeds = reinterpret_cast<uint2*>( shadow_rng_seeds->map() );
@@ -761,22 +804,22 @@ void Arealight::trace( const RayGenCameraData& camera_data )
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 5, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-
   //Resample
 #if 0
-  num_resample = 40;
+  num_resample = 10;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   //Filter occlusion
+  /*
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-
-  
+  */
   //Display
+ 
   /*
   if (_view_mode) {
     if (_view_mode == 2) {
@@ -806,8 +849,31 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 
+  
+//#define CAPTURE_FRAMES
+#ifdef CAPTURE_FRAMES
+  std::stringstream fname;
+  fname << "output_";
+  fname << std::setw(7) << std::setfill('0') << output_num;
+  fname << ".ppm";
+  Buffer output_buf = _scene->getOutputBuffer();
+  output_num++;
 
-
+sutilDisplayFilePPM(fname.str().c_str(), output_buf->get());
+#define NUM_FRAMES 1000
+  if (output_num%(NUM_FRAMES/10) == 0)
+  std::cout << ((float)(output_num)/NUM_FRAMES)*100.0 << "%" << std::endl;
+  if (output_num > NUM_FRAMES)
+    exit(0);
+#endif
+    
+  if (_frame_number > 1000) {
+    LARGE_INTEGER ended_render;
+    QueryPerformanceCounter(&ended_render);
+    double timing = (double(ended_render.QuadPart - _started_render.QuadPart)/_perf_freq/1000.0);
+    std::cout << "Finished rendering at " << (1000.0/timing) << " fps (average)" << std::endl;
+    exit(0);
+  }
 }
 
 
@@ -1406,7 +1472,7 @@ void Arealight::createGeometry()
     * Matrix4x4::scale(make_float3(100,10,100));
 
   Matrix4x4 ground_xform3 = overall_xform
-    * Matrix4x4::translate(make_float3(-20,-3,-10));
+    * Matrix4x4::translate(make_float3(-20,-6,-10));
     //* Matrix4x4::scale(make_float3(0.5));
 
   Matrix4x4 rock_xform = overall_xform
@@ -1414,11 +1480,14 @@ void Arealight::createGeometry()
     * Matrix4x4::rotate(110 * M_PI/180, make_float3(0,1,0))
     * Matrix4x4::scale(make_float3(3));
 
+
   Matrix4x4 tentacles_xform = overall_xform
     * Matrix4x4::translate(make_float3(-10,0,-2))
     * Matrix4x4::rotate(-10*M_PI/180, make_float3(0,0,1))
     * Matrix4x4::rotate(35*M_PI/180, make_float3(0,1,0))
     * Matrix4x4::scale(make_float3(2));
+  
+  tentacles_xform = optix::Matrix4x4::identity();
 
   //Load the OBJ's
   //ObjLoader * ground_loader = new ObjLoader( texpath("tentacles2/tentacles_on_wavyground.obj").c_str(), _context, ground_geom_group, ground_mat );
@@ -1432,18 +1501,33 @@ void Arealight::createGeometry()
   ObjLoader * rock_loader = new ObjLoader( texpath("tentacles2/tentacles_rock2.obj").c_str(), _context, rock_geom_group, rock_mat );
   rock_loader->load(rock_xform);
 
+
+  _trans = _context->createTransform();
+  _trans->setMatrix( false, optix::Matrix4x4::identity().getData(), 0);
+  _trans->setChild( tentacles_geom_group );
+
+
   //Make one big geom group
   GeometryGroup geom_group = _context->createGeometryGroup();
   appendGeomGroup(geom_group, ground_geom_group);
-  appendGeomGroup(geom_group, tentacles_geom_group);
+  //appendGeomGroup(geom_group, tentacles_geom_group);
   //appendGeomGroup(geom_group, rock_geom_group);
 
   //geom_group->setChild(ct, global);
   geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
 
+
+  _top_grp = _context->createGroup();
+  _top_grp->setChildCount(2);
+  _top_grp->setChild(0, geom_group);
+  _top_grp->setChild(1, _trans);
+
+  _top_grp->setAcceleration(_context->createAcceleration("Bvh", "Bvh"));
+  _top_grp->getAcceleration()->setProperty("refit","1");
+
   //Set the geom group
-  _context["top_object"]->set( geom_group );
-  _context["top_shadower"]->set( geom_group );
+  _context["top_object"]->set( _top_grp );
+  _context["top_shadower"]->set( _top_grp );
 }
 #endif
 
@@ -1591,7 +1675,6 @@ void Arealight::createGeometry()
 
 
 
-
   //Make one big geom group
   GeometryGroup geom_group = _context->createGeometryGroup();
 
@@ -1605,25 +1688,30 @@ void Arealight::createGeometry()
   //appendGeomGroup(geom_group, floor_geom_group);
 
   _trans = _context->createTransform();
+  _trans2 = _context->createTransform();
 
   grid2_geom_group->getAcceleration()->setProperty("refit", "1");
+  grid3_geom_group->getAcceleration()->setProperty("refit", "1");
 
   _anim_geom = grid2_geom_group->getChild(0)->getGeometry();
   _anim_geom_group = grid2_geom_group;
   
 
-  optix::Matrix4x4 test = optix::Matrix4x4::translate(make_float3(0,10,0));
+  optix::Matrix4x4 test = optix::Matrix4x4::translate(make_float3(0,0,0));
   _trans->setMatrix( false, test.getData(), 0);
   _trans->setChild( grid2_geom_group );
 
-  grid2_geom_group->getAcceleration()->markDirty();
+  _trans2->setMatrix( false, test.getData(), 0);
+  _trans2->setChild( grid3_geom_group );
+
+  //grid2_geom_group->getAcceleration()->markDirty();
 
   std::cout << "asdf" << std::endl;
   std::cout << geom_group->getChildCount() << std::endl;
   appendGeomGroup(geom_group, floor_geom_group);
   appendGeomGroup(geom_group, grid1_geom_group);
   //appendGeomGroup(geom_group, grid2_geom_group);
-  appendGeomGroup(geom_group, grid3_geom_group);
+  //appendGeomGroup(geom_group, grid3_geom_group);
   //geom_group->setChild(ct, global);
   //geom_group->setAcceleration( _context->createAcceleration("Sbvh", "Bvh") );
   geom_group->setAcceleration( _context->createAcceleration("Bvh", "Bvh") );
@@ -1636,9 +1724,10 @@ void Arealight::createGeometry()
   //geom_group->setChildCount(ct+1);
   //geom_group->setChild(ct, _trans.get() );
 
-  _top_grp->setChildCount(2);
+  _top_grp->setChildCount(3);
   _top_grp->setChild(0, geom_group);
   _top_grp->setChild(1, _trans);
+  _top_grp->setChild(2, _trans2);
 
   _top_grp->setAcceleration(_context->createAcceleration("Bvh", "Bvh") );
   _top_grp->getAcceleration()->setProperty("refit", "1");
@@ -1699,7 +1788,8 @@ void Arealight::createGeometry()
   Material ground_mat = _context->createMaterial();
   ground_mat->setClosestHitProgram(0, _context->createProgramFromPTXFile(_ptx_path, "closest_hit_radiance3"));
   ground_mat->setAnyHitProgram(1, _context->createProgramFromPTXFile(_ptx_path, "any_hit_shadow"));
-  ground_mat["Ka"]->setFloat( 0.5f, 0.5f, 0.5f );
+  //ground_mat["Ka"]->setFloat( 0.5f, 0.5f, 0.5f );
+  ground_mat["Ka"]->setFloat( 0,0,0 );
   //ground_mat["Kd"]->setFloat( 0.620f, 0.770f, 0.650f );
   ground_mat["Kd"]->setFloat( 230.0/255.0,1,230.0/255.0 );
   ground_mat["Ks"]->setFloat( 0.0f, 0.0f, 0.0f );
