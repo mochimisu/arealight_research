@@ -27,7 +27,7 @@
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 #define WINDOWS_TIME
-#define SCENE 1
+#define SCENE 2
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -133,6 +133,7 @@ private:
   GeometryGroup _anim_geom_group;
   Group _top_grp;
 
+  float _total_avg_cur_spp;
 };
 
 Arealight* _scene;
@@ -141,6 +142,7 @@ int output_num = 0;
 void Arealight::initScene( InitialCameraData& camera_data )
 {
   _anim_t = 0;
+  _total_avg_cur_spp = 0;
   sutilCurrentTime(&_previous_frame_time);
   _is_anim = true;
   // set up path to ptx file associated with tutorial number
@@ -296,7 +298,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   _normal_rpp = 3;
   _brute_rpp = 2000;
-  _max_rpp_pass = 10;
+  _max_rpp_pass = 8;
   float spp_mu = 2;
 
   _context["normal_rpp"]->setUint(_normal_rpp);
@@ -698,7 +700,8 @@ void Arealight::trace( const RayGenCameraData& camera_data )
   _previous_frame_time = t;
 
   if (_is_anim)
-    _anim_t += 0.03; // 0.6 * time_elapsed;
+    //_anim_t += 0.03; //0.7 * time_elapsed; //0.6 * time_elapsed;
+    _anim_t += 0.7 * time_elapsed; //0.6 * time_elapsed;
   float3 eye, u, v, w;
   eye.x = (float) (camera_data.eye.x * sin(_anim_t));
   eye.y = (float)( 0.2 + camera_data.eye.y + cos( _anim_t*1.5 ) );
@@ -729,7 +732,7 @@ light_buffer->unmap();
     *optix::Matrix4x4::translate(make_float3(0,0.2+0.3*sin(_anim_t),0));
 
   optix::Matrix4x4 tr2 = optix::Matrix4x4::rotate(-M_PI/6+cos(_anim_t*2)/2, make_float3(1,0,0));
-#define MOVE_GEOM
+//#define MOVE_GEOM
 #ifdef MOVE_GEOM
   _trans->setMatrix( false, tr.getData(), 0);
   _trans2->setMatrix( false, tr2.getData(), 0);
@@ -750,8 +753,7 @@ light_buffer->unmap();
   eye.y = (float)( 4.0f + 5*sin( _anim_t*1.5 ) );
   eye.z = (float)( -13.0f + 20*cos( _anim_t ) );
 #define MOVE_GEOM
-#ifdef MOVE_GEOM
-  Matrix4x4 tr = Matrix4x4::translate(make_float3(0,-5,0))
+#ifdef MOVE_GEOM Matrix4x4 tr = Matrix4x4::translate(make_float3(0,-5,0))
     * Matrix4x4::translate(make_float3(-10,0,-2))
     * Matrix4x4::rotate(-10*M_PI/180, make_float3(0,0,1))
     * Matrix4x4::rotate(35*M_PI/180, make_float3(0,1,0))
@@ -773,7 +775,7 @@ light_buffer->unmap();
   //_camera_changed = true;
 
 
-//#define MOVE_CAMERA
+#define MOVE_CAMERA
 #ifndef MOVE_CAMERA
   _context["eye"]->setFloat( camera_data.eye );
   _context["U"]->setFloat( camera_data.U );
@@ -806,18 +808,16 @@ light_buffer->unmap();
     static_cast<unsigned int>(buffer_height) );
   //Resample
 #if 0
-  num_resample = 10;
+  num_resample = 20;
   for(int i = 0; i < num_resample; i++)
 #endif
     _context->launch( 6, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   //Filter occlusion
-  /*
   _context->launch( 2, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
   _context->launch( 3, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  */
   //Display
  
   /*
@@ -849,7 +849,50 @@ light_buffer->unmap();
   _context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 
-  
+  #define NUM_FRAMES 500
+#define SPP_AVG
+#ifdef SPP_AVG
+  //spp = _context["spp"]->getBuffer();
+  Buffer cur_spp = _context["spp_cur"]->getBuffer();
+  Buffer brdf = _context["brdf"]->getBuffer();
+  float min_cur_spp = 10000000.0;
+  float max_cur_spp = 0.0;
+  float avg_cur_spp = 0.0;
+  float3* brdf_arr = reinterpret_cast<float3*>( brdf->map() );
+  uint2 err_loc;
+  uint2 err_first_loc;
+  bool first_loc_set = false;
+  int num_cur_avg = 0;
+  int num_cur_low = 0;
+  float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
+  for(unsigned int j = 0; j < _height; ++j ) {
+    for(unsigned int i = 0; i < _width; ++i ) {
+      float cur_brdf_x = brdf_arr[i+j*_width].x;
+      if (cur_brdf_x > -1) {
+        //std::cout << spp_arr[i+j*_width] <<", ";
+        float cur_spp_val = cur_spp_arr[i+j*_width];
+        if (cur_spp_val > -0.001) {
+          min_cur_spp = min(min_cur_spp,cur_spp_val);
+          max_cur_spp = max(max_cur_spp,cur_spp_val);
+          avg_cur_spp += cur_spp_val;
+          num_cur_avg++;
+          if (cur_spp_val < 10)
+            num_cur_low++;
+        }
+      }
+    }
+    //std::cout << std::endl;
+  }
+  cur_spp->unmap();
+  brdf->unmap();
+  avg_cur_spp /= num_cur_avg;
+  _total_avg_cur_spp += avg_cur_spp;
+  //std::cout << "Average SPP this frame: " << avg_cur_spp << std::endl;
+
+  if (_frame_number > NUM_FRAMES) {
+    std::cout << "SPP Average: " << (_total_avg_cur_spp/NUM_FRAMES) << std::endl;
+  }
+#endif
 //#define CAPTURE_FRAMES
 #ifdef CAPTURE_FRAMES
   std::stringstream fname;
@@ -859,19 +902,20 @@ light_buffer->unmap();
   Buffer output_buf = _scene->getOutputBuffer();
   output_num++;
 
-sutilDisplayFilePPM(fname.str().c_str(), output_buf->get());
-#define NUM_FRAMES 1000
+  sutilDisplayFilePPM(fname.str().c_str(), output_buf->get());
+
   if (output_num%(NUM_FRAMES/10) == 0)
-  std::cout << ((float)(output_num)/NUM_FRAMES)*100.0 << "%" << std::endl;
-  if (output_num > NUM_FRAMES)
+    std::cout << ((float)(output_num)/NUM_FRAMES)*100.0 << "%" << std::endl;  if (output_num > NUM_FRAMES) {
     exit(0);
+  }
+
 #endif
-    
-  if (_frame_number > 1000) {
+
+  if (_frame_number > NUM_FRAMES) {
     LARGE_INTEGER ended_render;
     QueryPerformanceCounter(&ended_render);
     double timing = (double(ended_render.QuadPart - _started_render.QuadPart)/_perf_freq/1000.0);
-    std::cout << "Finished rendering at " << (1000.0/timing) << " fps (average)" << std::endl;
+    std::cout << "Finished rendering at " << (NUM_FRAMES/timing) << " fps (average)" << std::endl;
     exit(0);
   }
 }
