@@ -72,6 +72,7 @@ __device__ __inline__ void sampleUnitHemisphere( const optix::float2& sample,
   point = x*U + y*V + z*W;
 }
 
+// HeatMap visualization
 __device__ __inline__ float3 heatMap(float val) {
   float fraction;
   if (val < 0.0f)
@@ -94,6 +95,7 @@ __device__ __inline__ float3 heatMap(float val) {
 rtBuffer<float, 1>              gaussian_lookup;
 
 
+// Our Gaussian Filter, based on w_xf
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
   float sample = distsq*wxf*wxf;
@@ -105,30 +107,8 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
   //return exp(-4*sample);
   //return exp(-2*sample);
   //return exp(-0.5*sample);
-
-  /*
-  float scaled = sample*64;
-  int index = (int) scaled;
-  float weight = scaled - index;
-  return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
-  */
 }
 
-
-/*
-__device__ __inline__ float gaussFilter(float dist_sq, float wxf)
-{
-float sample = dist_sq*wxf*wxf*6;
-if (sample > 5.99) {
-return 0.0;
-}
-float scaled = sample*10;
-int index = (int) scaled;
-float weight = scaled - index;
-//now return exp(-0.5*dist_sq/sigma_sq)
-return (1.0 - weight) * gaussian_lookup[index] + weight * gaussian_lookup[index + 1];
-}
-*/
 
 //marsaglia polar method
 __device__ __inline__ float2 randomGauss(float center, float std_dev, float2 sample)
@@ -177,7 +157,7 @@ rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           blur_wxf, , );
 rtDeclareVariable(uint,           err_vis, , );
-rtDeclareVariable(uint,						view_mode, , );
+rtDeclareVariable(uint,           view_mode, , );
 
 rtDeclareVariable(uint,           normal_rpp, , );
 rtDeclareVariable(uint,           brute_rpp, , );
@@ -195,15 +175,15 @@ rtDeclareVariable(float,          min_disp_val, , );
 
 rtDeclareVariable(float,          spp_mu, , );
 
+// Compute SPP given s1,s2,wxf @ a given pixel
 __device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
-  //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
-  //float d = 1.0/360.0 * (t_hit*tan(30.0*M_PI/180.0));
   float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
   float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] * s1/(1+s1)));
   float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
   return spp;
 }
 
+// Compute wxf given s2 @ a given pixel
 __device__ __inline__ float computeWxf( float s2 ) {
   return min(spp_mu/(light_sigma * s2), 1/(proj_d[launch_index]*(1+s2)));
 }
@@ -221,8 +201,6 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   vis[launch_index] = make_float3(1.0, 0.0, 0.0);
   slope[launch_index] = make_float2(0.0, 10000.0);
   float current_spp = normal_rpp * normal_rpp;
-  //spp[launch_index] = current_spp;
-  //spp_cur[launch_index] = 0;
   use_filter_n[launch_index] = false;
   use_filter_occ[launch_index] = false;
   use_filter_occ_filter1d[launch_index] = false;
@@ -281,17 +259,11 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 }
 
 RT_PROGRAM void pinhole_camera_continue_sample() {
-  //float target_spp = spp[launch_index];
   if (brdf[launch_index].x < -1.0f)
     return;
   float2 cur_slope = slope[launch_index];
   float wxf = computeWxf(cur_slope.y);
   float target_spp = computeSpp(cur_slope.x, cur_slope.y, wxf);
-  //target_spp = 10000000.0;
-  //target_spp = 164;
-
-  //target_spp = 164;
-  //target_spp = 199;
   spp[launch_index] = target_spp;
   float cur_spp = spp_cur[launch_index];
 
@@ -554,7 +526,6 @@ RT_PROGRAM void miss()
 {
   prd_radiance.brdf = bg_color;
   prd_radiance.hit_shadow = false;
-  //prd_radiance.shadow_intersection = 100000.0f;
 }
 
 //
@@ -563,17 +534,13 @@ RT_PROGRAM void miss()
 RT_PROGRAM void any_hit_shadow()
 
 {
-  // this material is opaque, so it fully attenuates all shadow rays
   prd_shadow.attenuation = make_float3(0);
   prd_shadow.hit = true;
-  //prd_shadow.distance = t_hit;
 
   prd_shadow.distance_min = min(prd_shadow.distance_min, t_hit);
   prd_shadow.distance_max = max(prd_shadow.distance_max, t_hit);
 
   rtIgnoreIntersection();
-
-  //rtTerminateRay();
 }
 
 
@@ -649,15 +616,7 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
-
-      /*
-      float strength = exp(-0.5*((sample.x-0.5)*(sample.x-0.5) \
-      + (sample.y-0.5) * (sample.y-0.5)) \
-      / (2 * light_sigma * light_sigma));
-      */
-
       float3 target = (sample.x * lx + sample.y * ly) + lo;
-
 
       float strength = exp( -0.5 * ((light_center.x - target.x) * (light_center.x - target.x) \
         + (light_center.y - target.y) * (light_center.y - target.y) \
@@ -701,18 +660,6 @@ RT_PROGRAM void closest_hit_radiance3()
 
   shadow_rng_seeds[launch_index] = seed;
 
-  /*
-  float importance = prd_radiance.importance * optix::luminance( reflectivity );
-
-  if( importance > importance_cutoff && prd_radiance.depth < max_depth) {
-  PerRayData_radiance refl_prd;
-  refl_prd.importance = importance;
-  refl_prd.depth = prd_radiance.depth+1;
-  float3 R = reflect( ray.direction, ffnormal );
-  optix::Ray refl_ray( hit_point, R, radiance_ray_type, scene_epsilon );
-  rtTrace(top_object, refl_ray, refl_prd);
-  //color += reflectivity * refl_prd.result;
-  }*/
 }
 
 
