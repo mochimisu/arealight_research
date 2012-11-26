@@ -2,7 +2,7 @@
 * arealight.cpp
 * Area Light Filtering
 * Adapted from NVIDIA OptiX Tutorial
-* Brandon Wang, Soham Mehta
+* Brandon Wang, Soham Mehta, Ravi Ramamoorthi
 */
 
 #include <optixu/optixpp_namespace.h>
@@ -621,7 +621,6 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
       Buffer cur_spp = m_context["spp_cur"]->getBuffer();
       Buffer brdf = m_context["brdf"]->getBuffer();
       spp = m_context["spp"]->getBuffer();
-      // Numeric limits gives me something funky?
       float min_cur_spp = 10000000.0;
       float max_cur_spp = 0.0;
       float avg_cur_spp = 0.0;

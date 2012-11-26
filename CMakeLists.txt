@@ -30,10 +30,7 @@ if(GLUT_FOUND AND OPENGL_FOUND)
     arealight.cu
 
     # These files are common among multiple samples
-    box.cu
-    sphere.cu
     commonStructs.h
-    parallelogram.cu
     )
 else()
   # GLUT or OpenGL not found

@@ -2,7 +2,7 @@
  * arealight.h
  * Area Light Filtering
  * Adapted from NVIDIA OptiX Tutorial
- * Brandon Wang, Soham Mehta
+ * Brandon Wang, Soham Mehta, Ravi Ramamoorthi
  */
 
 #include <optix.h>
