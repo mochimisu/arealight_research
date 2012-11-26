@@ -34,7 +34,7 @@ __device__ __inline__ void createONB( const optix::float3& n,
 
   W = normalize( n );
   U = cross( W, make_float3( 0.0f, 1.0f, 0.0f ) );
-  if ( fabsf( U.x) < 0.001f && fabsf( U.y ) < 0.001f && fabsf( U.z ) < 0.001f  )
+  if ( fabsf( U.x) < 0.001f && fabsf( U.y ) < 0.001f && fabsf( U.z ) < 0.001f )
     U = cross( W, make_float3( 1.0f, 0.0f, 0.0f ) );
   U = normalize( U );
   V = cross( W, U );
@@ -94,7 +94,6 @@ __device__ __inline__ float3 heatMap(float val) {
 
 rtBuffer<float, 1>              gaussian_lookup;
 
-
 // Our Gaussian Filter, based on w_xf
 __device__ __inline__ float gaussFilter(float distsq, float wxf)
 {
@@ -104,23 +103,6 @@ __device__ __inline__ float gaussFilter(float distsq, float wxf)
   }
 
   return exp(-3*sample);
-  //return exp(-4*sample);
-  //return exp(-2*sample);
-  //return exp(-0.5*sample);
-}
-
-
-//marsaglia polar method
-__device__ __inline__ float2 randomGauss(float center, float std_dev, float2 sample)
-{
-  float u,v,s;
-  u = sample.x * 2 - 1;
-  v = sample.y * 2 - 1;
-  s = u*u + v*v;
-  float2 result = make_float2(
-    center+std_dev*v*sqrt(-2.0*log(s)/s),
-    center+std_dev*u*sqrt(-2.0*log(s)/s));
-  return result;
 }
 
 //
@@ -156,29 +138,28 @@ rtBuffer<int, 2>                  obj_id_b;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           blur_wxf, , );
-rtDeclareVariable(uint,           err_vis, , );
 rtDeclareVariable(uint,           view_mode, , );
 
 rtDeclareVariable(uint,           normal_rpp, , );
 rtDeclareVariable(uint,           brute_rpp, , );
 rtDeclareVariable(uint,           max_rpp_pass, , );
 rtDeclareVariable(uint,           show_progressive, , );
-rtDeclareVariable(float,          zmin_rpp_scale, , );
 rtDeclareVariable(int2,           pixel_radius, , );
 rtDeclareVariable(int2,           pixel_radius_wxf, , );
 
 rtDeclareVariable(uint,           show_brdf, , );
 rtDeclareVariable(uint,           show_occ, , );
 
-rtDeclareVariable(float,          max_disp_val, , );
 rtDeclareVariable(float,          min_disp_val, , );
 
 rtDeclareVariable(float,          spp_mu, , );
+rtDeclareVariable(uint2,          image_dim, , );
 
 // Compute SPP given s1,s2,wxf @ a given pixel
 __device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
   float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
-  float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] * s1/(1+s1)));
+  float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] 
+        * s1/(1+s1)));
   float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
   return spp;
 }
@@ -230,8 +211,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
     return;
   }
 
-  //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
-  float proj_dist = 1.0/360.0 * (prd.t_hit*tan(30.0*M_PI/180.0));
+  float proj_dist = 2.0/image_dim.y * (prd.t_hit*tan(30.0*M_PI/180.0));
   proj_d[launch_index] = proj_dist;
   float wxf = computeWxf(prd.s2);
   float theoretical_spp = 0;
@@ -284,8 +264,10 @@ RT_PROGRAM void pinhole_camera_continue_sample() {
     prd.s1 = slope[launch_index].x;
     prd.s2 = slope[launch_index].y;
 
-    optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon); 
-    int new_samp = min((int) (target_spp - cur_spp), (int) max_rpp_pass*max_rpp_pass);
+    optix::Ray ray(ray_origin, ray_direction, radiance_ray_type,
+        scene_epsilon); 
+    int new_samp = min((int) (target_spp - cur_spp), 
+        (int) max_rpp_pass*max_rpp_pass);
     int sqrt_samp = ceil(sqrt((float)new_samp));
     prd.sqrt_num_samples = sqrt_samp;
     cur_spp = cur_spp + sqrt_samp * sqrt_samp;
@@ -336,23 +318,33 @@ RT_PROGRAM void display_camera() {
     }
     if (view_mode == 3) 
       //Current SPP
-      //output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
-      output_buffer[launch_index] = make_color( heatMap(spp_cur[launch_index] / 60.0 ) );
+      output_buffer[launch_index] = make_color( 
+          heatMap(spp_cur[launch_index] / 60.0 ) );
     if (view_mode == 4) 
       //Theoretical SPP
-      //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
-      output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 60.0 ) );
+      output_buffer[launch_index] = make_color( 
+          heatMap(spp[launch_index] / 60.0 ) );
     if (view_mode == 5)
       //Use filter (normals)
-      output_buffer[launch_index] = make_color( make_float3(use_filter_n[launch_index])  );
+      output_buffer[launch_index] = make_color( 
+          make_float3(use_filter_n[launch_index])  );
     if (view_mode == 6)
       //Use filter (unocc)
-      output_buffer[launch_index] = make_color( make_float3(use_filter_occ[launch_index])  );
+      output_buffer[launch_index] = make_color( 
+          make_float3(use_filter_occ[launch_index])  );
     if (view_mode == 7)
       //View areas that are not yet converged to theoretical spp
-      output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index] < spp[launch_index],0,0) );
+      output_buffer[launch_index] = make_color( 
+          make_float3(spp_cur[launch_index] < spp[launch_index],0,0) );
     if (view_mode == 8)
-      output_buffer[launch_index] = make_color( heatMap( (float)(obj_id_b[launch_index]-10)/5.0 ) );
+      output_buffer[launch_index] = make_color( 
+          heatMap( (float)(obj_id_b[launch_index]-10)/5.0 ) );
+    if (view_mode == 9)
+      output_buffer[launch_index] = make_color( 
+          heatMap( (float)(slope[launch_index].x) ) );
+    if (view_mode == 10)
+      output_buffer[launch_index] = make_color( 
+          heatMap( (float)(slope[launch_index].y) ) );
   } else
     output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
@@ -366,7 +358,7 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
   float wxf, int i, int j, const optix::size_t2& buf_size, 
   unsigned int pass ) {
     const float dist_scale_threshold = 10.0f;
-    const float dist_threshold = 1.0f;
+    const float dist_threshold = 10.0f;
     const float angle_threshold = 20.0f * M_PI/180.0f;
 
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
@@ -377,10 +369,11 @@ __device__ __inline__ void occlusionFilter( float& blurred_vis_sum,
         use_filter_n[target_index]) {
           float3 target_loc = world_loc[target_index];
           float3 diff = cur_world_loc - target_loc;
-          float euclidean_distancesq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
+          float euclidean_distancesq = diff.x*diff.x + diff.y*diff.y 
+            + diff.z*diff.z;
           float normcomp = dot(diff, lightnorm);
           float distancesq = euclidean_distancesq - normcomp*normcomp;
-          if (distancesq < 10.0) {
+          if (distancesq < dist_threshold) {
             float3 target_n = n[target_index];
             if (acos(dot(target_n, cur_n)) < angle_threshold) {
               float weight = gaussFilter(distancesq, wxf);
@@ -461,8 +454,9 @@ RT_PROGRAM void occlusion_filter_second_pass() {
   vis[launch_index].x = blurred_vis;
 }
 
-__device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt, int obj_id,
-  unsigned int i, unsigned int j, const optix::size_t2& buf_size, unsigned int pass) {
+__device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, 
+    bool& use_filt, int obj_id, unsigned int i, unsigned int j, 
+    const optix::size_t2& buf_size, unsigned int pass) {
     float2 output_slope = cur_slope;
     uint use_filter = 0;
     if (i > 0 && i < buf_size.x && j > 0 && j <buf_size.y) {
@@ -488,15 +482,14 @@ __device__ __inline__ float2 s1s2FilterMaxMin(float2& cur_slope, bool& use_filt,
     return output_slope;
 }
 
-#define S1S2_RADIUS 10
-
 RT_PROGRAM void s1s2_filter_first_pass() {
   float2 cur_slope = slope[launch_index];
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ[launch_index];
   int obj_id = obj_id_b[launch_index];
-  for (int i = -S1S2_RADIUS; i < S1S2_RADIUS; i++) {
-    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, launch_index.x + i, launch_index.y, buf_size, 0);
+  for (int i = -pixel_radius.x; i < pixel_radius.x; i++) {
+    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, 
+        launch_index.x + i, launch_index.y, buf_size, 0);
   }
   use_filter_occ_filter1d[launch_index] |= use_filter;
   slope_filter1d[launch_index] = cur_slope;
@@ -509,8 +502,9 @@ RT_PROGRAM void s1s2_filter_second_pass() {
   size_t2 buf_size = slope.size();
   bool use_filter = use_filter_occ_filter1d[launch_index];
   int obj_id = obj_id_b[launch_index];
-  for (int i = -S1S2_RADIUS; i < S1S2_RADIUS; i++) {
-    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id, launch_index.x, launch_index.y + i, buf_size, 1);
+  for (int i = -pixel_radius.y; i < pixel_radius.y; i++) {
+    cur_slope = s1s2FilterMaxMin(cur_slope, use_filter, obj_id,
+        launch_index.x, launch_index.y + i, buf_size, 1);
   }
   if (!use_filter_occ[launch_index]) {
     use_filter_occ[launch_index] |= use_filter;
@@ -563,9 +557,12 @@ rtBuffer<uint2, 2> shadow_rng_seeds;
 
 RT_PROGRAM void closest_hit_radiance3()
 {
-  float3 world_geo_normal   = normalize( rtTransformNormal( RT_OBJECT_TO_WORLD, geometric_normal ) );
-  float3 world_shade_normal = normalize( rtTransformNormal( RT_OBJECT_TO_WORLD, shading_normal ) );
-  float3 ffnormal     = faceforward( world_shade_normal, -ray.direction, world_geo_normal );
+  float3 world_geo_normal   = normalize(
+      rtTransformNormal( RT_OBJECT_TO_WORLD, geometric_normal ) );
+  float3 world_shade_normal = normalize( 
+      rtTransformNormal( RT_OBJECT_TO_WORLD, shading_normal ) );
+  float3 ffnormal     = faceforward( 
+      world_shade_normal, -ray.direction, world_geo_normal );
   float3 color = Ka * ambient_light_color;
 
   float3 hit_point = ray.origin + t_hit * ray.direction;
@@ -583,22 +580,21 @@ RT_PROGRAM void closest_hit_radiance3()
   float3 lx = light.v2 - light.v1;
   float3 ly = light.v3 - light.v1;
   float3 lo = light.v1;
-  //float3 lc = light.color;
   float3 colorAvg = make_float3(0,0,0);
 
   //phong values
   float3 light_center = (0.5 * lx + 0.5 * ly) +lo;
   float3 to_light = light_center - hit_point;
-  float dist_to_light = sqrt(to_light.x*to_light.x + to_light.y*to_light.y + to_light.z*to_light.z);
+  float dist_to_light = sqrt(to_light.x*to_light.x + to_light.y*to_light.y 
+      + to_light.z*to_light.z);
   prd_radiance.dist_to_light = dist_to_light;
   if(prd_radiance.first_pass) {
     float3 L = normalize(to_light);
     float nDl = max(dot( ffnormal, L ),0.0f);
     float3 H = normalize(L - ray.direction);
     float nDh = max(dot( ffnormal, H ),0.0f);
-    //temporary - white light
-    float3 Lc = make_float3(1,1,1);
-    color += Kd * nDl * Lc;// * strength;
+    // white light
+    color += Kd * nDl;
     if (nDh > 0)
       color += Ks * pow(nDh, phong_exp);
     prd_radiance.brdf = color;
@@ -618,7 +614,8 @@ RT_PROGRAM void closest_hit_radiance3()
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
 
-      float strength = exp( -0.5 * ((light_center.x - target.x) * (light_center.x - target.x) \
+      float strength = exp( -0.5 * ((light_center.x - target.x) 
+            * (light_center.x - target.x) \
         + (light_center.y - target.y) * (light_center.y - target.y) \
         + (light_center.z - target.z) * (light_center.z - target.z)) \
         / ( light_sigma * light_sigma));
@@ -636,7 +633,8 @@ RT_PROGRAM void closest_hit_radiance3()
         shadow_prd.distance_max = 0;
         shadow_prd.distance_min = dist_to_light;
         shadow_prd.hit = false;
-        optix::Ray shadow_ray ( hit_point, sampleDir, shadow_ray_type, 0.001);//scene_epsilon );
+        optix::Ray shadow_ray ( hit_point, sampleDir, 
+            shadow_ray_type, 0.001);
         rtTrace(top_shadower, shadow_ray, shadow_prd);
 
         if(shadow_prd.hit) {
