@@ -186,15 +186,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _vis = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   m_context["vis"]->set( _vis );
 
-  _blur_occ = 1;
-  m_context["blur_occ"]->setUint(_blur_occ);
-
-  _blur_wxf = 0;
-  m_context["blur_wxf"]->setUint(_blur_wxf);
-
-  _err_vis = 1;
-  m_context["err_vis"]->setUint(_err_vis);
-
   _view_mode = 0;
   m_context["view_mode"]->setUint(_view_mode);
 
