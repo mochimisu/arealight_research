@@ -169,7 +169,7 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
   //125 is an "interesting" portion of the balance scene
   if (show_brdf)
-    d = make_float2(launch_index.x, 125) / make_float2(screen) * 2.f - 1.f;
+    d = make_float2(launch_index.x, 125./480. * screen.y) / make_float2(screen) * 2.f - 1.f;
   //now hack together a matrix, using launch_index.x to stratify the light.
 
 
@@ -274,6 +274,7 @@ rtDeclareVariable(rtObject, top_shadower, , );
 rtDeclareVariable(float3, reflectivity, , );
 rtDeclareVariable(float, importance_cutoff, , );
 rtDeclareVariable(int, max_depth, , );
+rtDeclareVariable(unsigned int,          matrix_samp_mult, , );
 
 //asdf
 rtBuffer<uint2, 2> shadow_rng_seeds;
@@ -329,7 +330,7 @@ RT_PROGRAM void closest_hit_radiance3()
 
     //Stratify y
     //for(int j=0; j<matrix_vals.size().y; ++j) {
-    for(int j=0; j<prd_radiance.sqrt_num_samples; ++j) {
+    for(int j=0; j<matrix_samp_mult; ++j) {
       seed.y = rot_seed(seed.y, j);
 
       float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
@@ -337,7 +338,7 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
       sample.x = 0.5;
-      sample.y = (float)launch_index.y / matrix_vals.size().y;
+      sample.y = (float)(launch_index.y*matrix_samp_mult+j) / (matrix_vals.size().y);
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
 
@@ -363,6 +364,7 @@ RT_PROGRAM void closest_hit_radiance3()
         rtTrace(top_shadower, shadow_ray, shadow_prd);
 
         if(shadow_prd.hit) {
+          matrix_vals[make_uint2(launch_index.x, launch_index.y*matrix_samp_mult + j)] = make_float2(0, shadow_prd.distance_min);
           prd_radiance.hit_shadow = true;
           float d2min = dist_to_light - shadow_prd.distance_max;
           float d2max = dist_to_light - shadow_prd.distance_min;
@@ -374,6 +376,7 @@ RT_PROGRAM void closest_hit_radiance3()
           prd_radiance.s1 = max(prd_radiance.s1, s1);
           prd_radiance.s2 = min(prd_radiance.s2, s2);
         } else {
+        matrix_vals[make_uint2(launch_index.x, launch_index.y*matrix_samp_mult + j)] = make_float2(1, 0);
           prd_radiance.unavg_vis += strength;
         }
       }

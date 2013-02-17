@@ -24,6 +24,8 @@
 #include <iomanip>
 #include <Mouse.h>
 
+#include <fstream>
+
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 //#define WINDOWS_TIME
@@ -113,6 +115,7 @@ private:
 
   AreaLight * _env_lights;
   uint _show_brdf;
+  uint matrix_samp_mult;
   uint _show_occ;
   float _sigma;
 
@@ -186,9 +189,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _vis = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   m_context["vis"]->set( _vis );
 
+  matrix_samp_mult = 10;
+
   // matrix thing buffer
-  Buffer matrix_buf = m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT2, _width, _height);
+  Buffer matrix_buf = m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT2, _width, _height * matrix_samp_mult);
   m_context["matrix_vals"]->set(matrix_buf);
+
+  m_context["matrix_samp_mult"]->setUint(matrix_samp_mult);
 
   _view_mode = 0;
   m_context["view_mode"]->setUint(_view_mode);
@@ -881,6 +888,47 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
     else
       std::cout << "Occlusion Display: Off" << std::endl;
     return true;
+
+  case '1':
+    {
+      std::ofstream outfile;
+      outfile.open("output.txt");
+
+      outfile << "\%matrix vals" << std::endl;
+      Buffer matrix_val_buf = m_context["matrix_vals"]->getBuffer();
+      float2* matrix_arr = reinterpret_cast<float2*>( matrix_val_buf->map());
+      outfile << "\%occlusion func" << std::endl;
+      outfile << "A = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float2 cur_val = matrix_arr[i+j*_width];
+          float out_val = cur_val.x;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+
+      outfile << "\%depth" << std::endl;
+      outfile << "A(:,:,2) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float2 cur_val = matrix_arr[i+j*_width];
+          float out_val = cur_val.y;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+      outfile.close();
+      matrix_val_buf->unmap();
+      std::cout << "output written" << std::endl;
+    }
+    break;
 
 
 
@@ -2010,6 +2058,7 @@ int main( int argc, char** argv )
   //unsigned int width = 1080u, height = 720u;
   //unsigned int width = 1600u, height = 1080u;
   unsigned int width = 640u, height = 480u;
+  //unsigned int width = 6400u, height = 4800u;
 
   std::string texture_path;
   for ( int i = 1; i < argc; ++i ) {
