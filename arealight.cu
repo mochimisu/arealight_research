@@ -140,9 +140,6 @@ rtBuffer<float3, 2>               brdf;
 rtBuffer<float3, 2>               vis;
 
 rtDeclareVariable(uint,           frame, , );
-rtDeclareVariable(uint,           blur_occ, , );
-rtDeclareVariable(uint,           blur_wxf, , );
-rtDeclareVariable(uint,           err_vis, , );
 rtDeclareVariable(uint,           view_mode, , );
 
 rtDeclareVariable(uint,           normal_rpp, , );

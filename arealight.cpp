@@ -186,95 +186,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _vis = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   m_context["vis"]->set( _vis );
 
-  // Blurred (on one dimension) cclusion accumulation buffer
-  Buffer _occ_blur = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  m_context["vis_blur1d"]->set( _occ_blur );
-
-  // samples per pixel buffer
-#ifdef SPP_STATS
-  Buffer spp = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT, _width, _height );
-#else
-  Buffer spp = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-#endif
-  m_context["spp"]->set( spp );
-
-  // current samples per pixel buffer
-#ifdef SPP_STATS
-  Buffer spp_cur = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT, _width, _height );
-#else
-  Buffer spp_cur = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-#endif
-  m_context["spp_cur"]->set( spp_cur );
-
-  Buffer slope = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
-  m_context["slope"]->set( slope );
-
-  // gauss values
-  Buffer gauss_lookup = m_context->createBuffer( RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 65);
-  m_context["gaussian_lookup"]->set( gauss_lookup );
-
-  float* lookups = reinterpret_cast<float*>( gauss_lookup->map() );
-  const float gaussian_lookup[65] = { 0.85, 0.82, 0.79, 0.76, 0.72, 0.70, 0.68,
-    0.66, 0.63, 0.61, 0.59, 0.56, 0.54, 0.52,
-    0.505, 0.485, 0.46, 0.445, 0.43, 0.415, 0.395,
-    0.38, 0.365, 0.35, 0.335, 0.32, 0.305, 0.295,
-    0.28, 0.27, 0.255, 0.24, 0.23, 0.22, 0.21,
-    0.2, 0.19, 0.175, 0.165, 0.16, 0.15, 0.14,
-    0.135, 0.125, 0.12, 0.11, 0.1, 0.095, 0.09,
-    0.08, 0.075, 0.07, 0.06, 0.055, 0.05, 0.045,
-    0.04, 0.035, 0.03, 0.02, 0.018, 0.013, 0.008,
-    0.003, 0.0 };
-  const float exp_lookup[60] = {1.0000,    0.9048,    0.8187,    0.7408,    
-    0.6703,    0.6065,    0.5488,    0.4966,    0.4493,    0.4066,   
-    0.3679,    0.3329,    0.3012,    0.2725,    0.2466,    0.2231,   
-    0.2019,    0.1827,    0.1653,    0.1496,    0.1353,    0.1225,    
-    0.1108,    0.1003,    0.0907,    0.0821,    0.0743,   0.0672,    
-    0.0608,    0.0550,    0.0498,    0.0450,    0.0408,    0.0369,    
-    0.0334,    0.0302,    0.0273,    0.0247,    0.0224,    0.0202,   
-    0.0183,    0.0166,    0.0150,    0.0136,    0.0123,    0.0111,    
-    0.0101,    0.0091,    0.0082,    0.0074,    0.0067,    0.0061,    
-    0.0055,    0.0050,    0.0045,    0.0041,    0.0037,    0.0033,    
-    0.0030,    0.0027 };
-
-  for(int i=0; i<65; i++) {
-    lookups[i] = gaussian_lookup[i];
-  }/*
-   for(int i=0; i<60; i++) {
-   lookups[i] = exp_lookup[i];
-   }*/
-  gauss_lookup->unmap();
-
-  // world space buffer
-  Buffer world_loc = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
-  m_context["world_loc"]->set( world_loc );
-
-  Buffer n = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
-  m_context["n"]->set( n );
-
-  Buffer filter_n = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  m_context["use_filter_n"]->set( filter_n );
-
-  Buffer filter_occ = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  m_context["use_filter_occ"]->set( filter_occ );
-
-  Buffer filter_occ_filter1d = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  m_context["use_filter_occ_filter1d"]->set( filter_occ_filter1d );
-
-  Buffer s1s2_blur1d = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT2, _width, _height );
-  m_context["slope_filter1d"]->set( s1s2_blur1d );
-
-  Buffer spp_blur1d = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  m_context["spp_filter1d"]->set( spp_blur1d );
-
-  Buffer dist_to_light = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  m_context["dist_to_light"]->set( dist_to_light );
-
-  Buffer proj_d = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT, _width, _height );
-  m_context["proj_d"]->set( proj_d );
-
-  Buffer obj_id = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_INT, _width, _height );
-  m_context["obj_id_b"]->set( obj_id );
-
   _blur_occ = 1;
   m_context["blur_occ"]->setUint(_blur_occ);
 
@@ -777,49 +688,7 @@ light_buffer->unmap();
     static_cast<unsigned int>(buffer_height) );
 
   #define NUM_FRAMES 500
-#define SPP_AVG
-#ifdef SPP_AVG
-  //spp = m_context["spp"]->getBuffer();
-  Buffer cur_spp = m_context["spp_cur"]->getBuffer();
-  Buffer brdf = m_context["brdf"]->getBuffer();
-  float min_cur_spp = 10000000.0;
-  float max_cur_spp = 0.0;
-  float avg_cur_spp = 0.0;
-  float3* brdf_arr = reinterpret_cast<float3*>( brdf->map() );
-  uint2 err_loc;
-  uint2 err_first_loc;
-  bool first_loc_set = false;
-  int num_cur_avg = 0;
-  int num_cur_low = 0;
-  float* cur_spp_arr = reinterpret_cast<float*>( cur_spp->map() );
-  for(unsigned int j = 0; j < _height; ++j ) {
-    for(unsigned int i = 0; i < _width; ++i ) {
-      float cur_brdf_x = brdf_arr[i+j*_width].x;
-      if (cur_brdf_x > -1) {
-        //std::cout << spp_arr[i+j*_width] <<", ";
-        float cur_spp_val = cur_spp_arr[i+j*_width];
-        if (cur_spp_val > -0.001) {
-          min_cur_spp = min(min_cur_spp,cur_spp_val);
-          max_cur_spp = max(max_cur_spp,cur_spp_val);
-          avg_cur_spp += cur_spp_val;
-          num_cur_avg++;
-          if (cur_spp_val < 10)
-            num_cur_low++;
-        }
-      }
-    }
-    //std::cout << std::endl;
-  }
-  cur_spp->unmap();
-  brdf->unmap();
-  avg_cur_spp /= num_cur_avg;
-  _total_avg_cur_spp += avg_cur_spp;
-  //std::cout << "Average SPP this frame: " << avg_cur_spp << std::endl;
 
-  if (_frame_number > NUM_FRAMES) {
-    std::cout << "SPP Average: " << (_total_avg_cur_spp/NUM_FRAMES) << std::endl;
-  }
-#endif
 //#define CAPTURE_FRAMES
 #ifdef CAPTURE_FRAMES
   std::stringstream fname;
