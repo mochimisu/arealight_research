@@ -138,21 +138,7 @@ rtDeclareVariable(float3, bg_color, , );
 rtBuffer<float3, 2>               brdf;
 //divided occlusion, undivided occlusion, wxf, num_samples
 rtBuffer<float3, 2>               vis;
-rtBuffer<float, 2>                vis_blur1d;
-rtBuffer<float3, 2>               world_loc;
-rtBuffer<float3, 2>               n;
-rtBuffer<float2, 2>               slope_filter1d;
-rtBuffer<float, 2>                spp_filter1d;
-rtBuffer<float, 2>                spp;
-rtBuffer<float, 2>                spp_cur;
 
-//s1,s2
-rtBuffer<float2, 2>               slope;
-rtBuffer<uint, 2>                 use_filter_n;
-rtBuffer<uint, 2>                 use_filter_occ;
-rtBuffer<uint, 2>                 use_filter_occ_filter1d;
-rtBuffer<float, 2>                proj_d;
-rtBuffer<int, 2>                  obj_id_b;
 rtDeclareVariable(uint,           frame, , );
 rtDeclareVariable(uint,           blur_occ, , );
 rtDeclareVariable(uint,           blur_wxf, , );
@@ -175,18 +161,6 @@ rtDeclareVariable(float,          min_disp_val, , );
 
 rtDeclareVariable(float,          spp_mu, , );
 
-// Compute SPP given s1,s2,wxf @ a given pixel
-__device__ __inline__ float computeSpp( float s1, float s2, float wxf ) {
-  float spp_t_1 = (1/(1+s2)+proj_d[launch_index]*wxf);
-  float spp_t_2 = (1+light_sigma * min(s1*wxf,1/proj_d[launch_index] * s1/(1+s1)));
-  float spp = 4*spp_t_1*spp_t_1*spp_t_2*spp_t_2;
-  return spp;
-}
-
-// Compute wxf given s2 @ a given pixel
-__device__ __inline__ float computeWxf( float s2 ) {
-  return min(spp_mu/(light_sigma * s2), 1/(proj_d[launch_index]*(1+s2)));
-}
 
 RT_PROGRAM void pinhole_camera_initial_sample() {
   // Find direction to shoot ray in
@@ -199,11 +173,6 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 
   // Initialize the stuff we use in later passes
   vis[launch_index] = make_float3(1.0, 0.0, 0.0);
-  slope[launch_index] = make_float2(0.0, 10000.0);
-  float current_spp = normal_rpp * normal_rpp;
-  use_filter_n[launch_index] = false;
-  use_filter_occ[launch_index] = false;
-  use_filter_occ_filter1d[launch_index] = false;
   brdf[launch_index] = make_float3(0,0,0);
 
   optix::Ray ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon);
@@ -213,43 +182,22 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   prd.vis_weight_tot = 0.0f;
   prd.hit_shadow = false;
   prd.use_filter_n = false;
-  prd.s1 = slope[launch_index].x;
-  prd.s2 = slope[launch_index].y;
   prd.hit = false;
   prd.obj_id = -1;
 
   rtTrace(top_object, ray, prd);
 
-  obj_id_b[launch_index] = prd.obj_id;
 
   if (!prd.hit) {
     vis[launch_index] = make_float3(1,1,0);
-    spp[launch_index] = 0;
-    spp_cur[launch_index] = 0;
     brdf[launch_index].x = -2;
     return;
   }
 
-  //Currently assuming fov of 60deg, height of 720p, 1:1 aspect
-  float proj_dist = 1.0/360.0 * (prd.t_hit*tan(30.0*M_PI/180.0));
-  proj_d[launch_index] = proj_dist;
-  float wxf = computeWxf(prd.s2);
-  float theoretical_spp = 0;
-  if(prd.hit_shadow)
-    theoretical_spp = computeSpp(prd.s1, prd.s2, wxf);
-
-  world_loc[launch_index] = prd.world_loc;
   brdf[launch_index] = prd.brdf;
-  n[launch_index] = normalize(prd.n);
 
-  slope[launch_index] = make_float2(prd.s1, prd.s2);
-  use_filter_n[launch_index] = prd.use_filter_n;
-  use_filter_occ[launch_index] = prd.hit_shadow;
   vis[launch_index].x = 1;
 
-  spp_cur[launch_index] = current_spp;
-  spp[launch_index] = min(theoretical_spp, (float) brute_rpp * brute_rpp);
-  spp_filter1d[launch_index] = spp[launch_index];
 
   if (prd.hit_shadow && prd.vis_weight_tot > 0.01) {
     vis[launch_index].x = prd.unavg_vis/prd.vis_weight_tot;
@@ -261,7 +209,6 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
 RT_PROGRAM void display_camera() {
   float3 cur_vis = vis[launch_index];
   float blurred_vis = cur_vis.x;
-  float wxf = computeWxf(slope[launch_index].y);
 
   if (brdf[launch_index].x < -1.0f) {
     output_buffer[launch_index] = make_color( bg_color );
@@ -274,40 +221,7 @@ RT_PROGRAM void display_camera() {
     brdf_term = brdf[launch_index];
   if (show_occ)
     vis_term = blurred_vis;
-  if (view_mode) {
-    if (view_mode == 1)
-      //Occlusion only
-      output_buffer[launch_index] = make_color( make_float3(blurred_vis) );
-    if (view_mode == 2)  {
-      //Scale
-      //output_buffer[launch_index] = make_color( make_float3(scale) );
-      float min_wxf = computeWxf(min_disp_val);
-      float vis_color = 1/(wxf*light_sigma) * 8.0;
-      output_buffer[launch_index] = make_color( heatMap(vis_color) );
-      if (vis_color > 5)
-        output_buffer[launch_index] = make_color( make_float3(0) );
-    }
-    if (view_mode == 3) 
-      //Current SPP
-      //output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index]) / 100.0 );
-      output_buffer[launch_index] = make_color( heatMap(spp_cur[launch_index] / 60.0 ) );
-    if (view_mode == 4) 
-      //Theoretical SPP
-      //output_buffer[launch_index] = make_color( make_float3(spp[launch_index]) / 100.0 );
-      output_buffer[launch_index] = make_color( heatMap(spp[launch_index] / 60.0 ) );
-    if (view_mode == 5)
-      //Use filter (normals)
-      output_buffer[launch_index] = make_color( make_float3(use_filter_n[launch_index])  );
-    if (view_mode == 6)
-      //Use filter (unocc)
-      output_buffer[launch_index] = make_color( make_float3(use_filter_occ[launch_index])  );
-    if (view_mode == 7)
-      //View areas that are not yet converged to theoretical spp
-      output_buffer[launch_index] = make_color( make_float3(spp_cur[launch_index] < spp[launch_index],0,0) );
-    if (view_mode == 8)
-      output_buffer[launch_index] = make_color( heatMap( (float)(obj_id_b[launch_index]-10)/5.0 ) );
-  } else
-    output_buffer[launch_index] = make_color( vis_term * brdf_term);
+  output_buffer[launch_index] = make_color( vis_term * brdf_term);
 
 }
 
