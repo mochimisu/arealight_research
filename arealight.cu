@@ -337,6 +337,7 @@ RT_PROGRAM void closest_hit_radiance3()
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
 
       sample.x = 0.5;
+      sample.y = (float)launch_index.y / matrix_vals.size().y;
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
 
