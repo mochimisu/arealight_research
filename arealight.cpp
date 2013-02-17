@@ -186,6 +186,10 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _vis = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   m_context["vis"]->set( _vis );
 
+  // matrix thing buffer
+  Buffer matrix_buf = m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT2, _width, _height);
+  m_context["matrix_vals"]->set(matrix_buf);
+
   _view_mode = 0;
   m_context["view_mode"]->setUint(_view_mode);
 

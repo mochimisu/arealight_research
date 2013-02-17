@@ -132,6 +132,7 @@ rtDeclareVariable(float3,        V, , );
 rtDeclareVariable(float3,        W, , );
 rtDeclareVariable(float3,        bad_color, , );
 rtBuffer<uchar4, 2>              output_buffer;
+rtBuffer<float2, 2>              matrix_vals;
 
 rtDeclareVariable(float3, bg_color, , );
 
@@ -163,7 +164,16 @@ RT_PROGRAM void pinhole_camera_initial_sample() {
   // Find direction to shoot ray in
   size_t2 screen = output_buffer.size();
 
+  //capture only a scan line
+
   float2 d = make_float2(launch_index) / make_float2(screen) * 2.f - 1.f;
+  //125 is an "interesting" portion of the balance scene
+  if (show_brdf)
+    d = make_float2(launch_index.x, 125) / make_float2(screen) * 2.f - 1.f;
+  //now hack together a matrix, using launch_index.x to stratify the light.
+
+
+
   float3 ray_origin = eye;
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
   PerRayData_radiance prd;
@@ -216,6 +226,7 @@ RT_PROGRAM void display_camera() {
   float vis_term = 1;
   if (show_brdf)
     brdf_term = brdf[launch_index];
+  brdf_term = brdf[launch_index];
   if (show_occ)
     vis_term = blurred_vis;
   output_buffer[launch_index] = make_color( vis_term * brdf_term);
@@ -311,16 +322,21 @@ RT_PROGRAM void closest_hit_radiance3()
   }
 
   //Stratify x
-  for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
+  //for(int i=0; i<prd_radiance.sqrt_num_samples; ++i) {
+  //jk dont stratify x
+  for(int i=0; i<1; ++i) {
     seed.x = rot_seed(seed.x, i);
 
     //Stratify y
+    //for(int j=0; j<matrix_vals.size().y; ++j) {
     for(int j=0; j<prd_radiance.sqrt_num_samples; ++j) {
       seed.y = rot_seed(seed.y, j);
 
       float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );
       sample.x = (sample.x+((float)i))/prd_radiance.sqrt_num_samples;
       sample.y = (sample.y+((float)j))/prd_radiance.sqrt_num_samples;
+
+      sample.x = 0.5;
 
       float3 target = (sample.x * lx + sample.y * ly) + lo;
 
