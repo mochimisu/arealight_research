@@ -27,7 +27,7 @@
 //Config flags to do stuff
 // Use WinBase's timing thing to measure time (required for benchmarking..)
 //#define WINDOWS_TIME
-#define SCENE 1
+#define SCENE 2
 //Grids 1
 //Balance 2
 //Tentacles 3
@@ -746,12 +746,12 @@ light_buffer->unmap();
   eye.z = (float)( 0.5+camera_data.eye.z*cos( _anim_t/2 ) );
 #endif
 #if SCENE==3
-  lookat = make_float3( -20.0f, 4.0f,  -13.0f ); // lookat
+  lookat = make_float3( -20.0f, 4.0f,  -13.0f ); // lookat
   eye.x = (float) (-20.0f + 20* sin(_anim_t));
   eye.y = (float)( 4.0f + 5*sin( _anim_t*1.5 ) );
   eye.z = (float)( -13.0f + 20*cos( _anim_t ) );
-#define MOVE_GEOM
-#ifdef MOVE_GEOM Matrix4x4 tr = Matrix4x4::translate(make_float3(0,-5,0))
+#ifdef MOVE_GEOM 
+  Matrix4x4 tr = Matrix4x4::translate(make_float3(0,-5,0))
     * Matrix4x4::translate(make_float3(-10,0,-2))
     * Matrix4x4::rotate(-10*M_PI/180, make_float3(0,0,1))
     * Matrix4x4::rotate(35*M_PI/180, make_float3(0,1,0))
@@ -773,7 +773,7 @@ light_buffer->unmap();
   //m_camera_changed = true;
 
 
-#define MOVE_CAMERA
+//#define MOVE_CAMERA
 #ifndef MOVE_CAMERA
   m_context["eye"]->setFloat( camera_data.eye );
   m_context["U"]->setFloat( camera_data.U );
