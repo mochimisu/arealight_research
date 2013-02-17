@@ -150,7 +150,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   // context 
   m_context->setRayTypeCount( 2 );
-  m_context->setEntryPointCount( 7 );
+  m_context->setEntryPointCount( 2 );
   m_context->setStackSize( 8000 );
 
   m_context["max_depth"]->setInt(100);
@@ -320,32 +320,6 @@ void Arealight::initScene( InitialCameraData& camera_data )
 
   Program ray_gen_program = m_context->createProgramFromPTXFile( _ptx_path, camera_name );
   m_context->setRayGenerationProgram( 0, ray_gen_program );
-
-  // continual Sampling
-  std::string continue_sampling = "pinhole_camera_continue_sample";
-
-  Program continue_sampling_program = m_context->createProgramFromPTXFile( _ptx_path, continue_sampling );
-  m_context->setRayGenerationProgram( 6, continue_sampling_program );
-
-  // Occlusion Filter programs
-  std::string first_pass_occ_filter_name = "occlusion_filter_first_pass";
-  Program first_occ_filter_program = m_context->createProgramFromPTXFile( _ptx_path, 
-    first_pass_occ_filter_name );
-  m_context->setRayGenerationProgram( 2, first_occ_filter_program );
-  std::string second_pass_occ_filter_name = "occlusion_filter_second_pass";
-  Program second_occ_filter_program = m_context->createProgramFromPTXFile( _ptx_path, 
-    second_pass_occ_filter_name );
-  m_context->setRayGenerationProgram( 3, second_occ_filter_program );
-
-  // S1, S2 Filter programs
-  std::string first_pass_s1s2_filter_name = "s1s2_filter_first_pass";
-  Program first_s1s2_filter_program = m_context->createProgramFromPTXFile( _ptx_path, 
-    first_pass_s1s2_filter_name );
-  m_context->setRayGenerationProgram( 4, first_s1s2_filter_program );
-  std::string second_pass_s1s2_filter_name = "s1s2_filter_second_pass";
-  Program second_s1s2_filter_program = m_context->createProgramFromPTXFile( _ptx_path, 
-    second_pass_s1s2_filter_name );
-  m_context->setRayGenerationProgram( 5, second_s1s2_filter_program );
 
 
   // Display program
@@ -799,51 +773,6 @@ light_buffer->unmap();
   //Initial 16 Samples
   m_context->launch( 0, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
-  //Filter s1,s2
-  m_context->launch( 4, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  m_context->launch( 5, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  //Resample
-#if 0
-  num_resample = 20;
-  for(int i = 0; i < num_resample; i++)
-#endif
-    m_context->launch( 6, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  //Filter occlusion
-  m_context->launch( 2, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  m_context->launch( 3, static_cast<unsigned int>(buffer_width),
-    static_cast<unsigned int>(buffer_height) );
-  //Display
- 
-  /*
-  if (_view_mode) {
-    if (_view_mode == 2) {
-      //scale
-      Buffer slope = m_context["slope"]->getBuffer();
-      float min_s2 = 100000000.0;
-      float max_s2 = 0.0;
-      float2* slope_arr = reinterpret_cast<float2*>( slope->map() );
-      for(unsigned int j = 0; j < _height; ++j ) {
-        for(unsigned int i = 0; i < _width; ++i ) {
-          //std::cout << spp_arr[i+j*_width] <<", ";
-          float cur_s2_val = slope_arr[i+j*_width].y;
-          if (cur_s2_val < 9999.0 && cur_s2_val > 0.01) {
-            min_s2 = min(min_s2,cur_s2_val);
-            max_s2 = max(max_s2,cur_s2_val);
-          }
-        }
-        //std::cout << std::endl;
-      }
-      m_context["max_disp_val"]->setFloat(max_s2);
-      m_context["min_disp_val"]->setFloat(min_s2);
-      std::cout << "max,min s2: " << max_s2 << ", " << min_s2 << std::endl;
-      slope->unmap();
-    }
-  }
-  */
   m_context->launch( 1, static_cast<unsigned int>(buffer_width),
     static_cast<unsigned int>(buffer_height) );
 
