@@ -44,6 +44,17 @@
 #endif
 
 using namespace optix;
+struct MatrixValues
+{
+  float visibility;
+  float d1;
+  float d2min;
+  float d2max;
+  float3 world_loc;
+  float proj_dist;
+};
+
+
 
 class Arealight : public SampleScene
 {
@@ -189,10 +200,13 @@ void Arealight::initScene( InitialCameraData& camera_data )
   _vis = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT3, _width, _height );
   m_context["vis"]->set( _vis );
 
-  matrix_samp_mult = 10;
+  //8 gives 4096
+  matrix_samp_mult = 8;
+  //matrix_samp_mult = 1;
 
   // matrix thing buffer
-  Buffer matrix_buf = m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT2, _width, _height * matrix_samp_mult);
+  Buffer matrix_buf = m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_USER, _width, _height * matrix_samp_mult);
+  matrix_buf->setElementSize(sizeof(MatrixValues));
   m_context["matrix_vals"]->set(matrix_buf);
 
   m_context["matrix_samp_mult"]->setUint(matrix_samp_mult);
@@ -309,6 +323,7 @@ void Arealight::initScene( InitialCameraData& camera_data )
   light_buffer->unmap();
 
   m_context["lights"]->set(light_buffer);
+
 
 
   // Set up camera
@@ -651,7 +666,7 @@ light_buffer->unmap();
 #endif
 #endif
 
-  PinholeCamera pc( eye, lookat, make_float3(0,1,0), 60.f, 60.f/(640.0/480.0) );
+  PinholeCamera pc( eye, lookat, make_float3(0,1,0), 60.f, 60.f/(640.0/512.0) );
   pc.getEyeUVW( eye, u, v, w );
   m_context["eye"]->setFloat( eye );
   m_context["U"]->setFloat( u );
@@ -896,34 +911,109 @@ bool Arealight::keyPressed(unsigned char key, int x, int y) {
 
       outfile << "\%matrix vals" << std::endl;
       Buffer matrix_val_buf = m_context["matrix_vals"]->getBuffer();
-      float2* matrix_arr = reinterpret_cast<float2*>( matrix_val_buf->map());
+      MatrixValues* matrix_arr = reinterpret_cast<MatrixValues*>( matrix_val_buf->map());
       outfile << "\%occlusion func" << std::endl;
       outfile << "A = [";
       for (unsigned int i = 0; i < _width; ++i)
       {
         for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
         {
-          float2 cur_val = matrix_arr[i+j*_width];
-          float out_val = cur_val.x;
+          float out_val = matrix_arr[i+j*_width].visibility;
           outfile << out_val << " ";
         }
         outfile << "; ";
       }
       outfile << "];"<< std::endl;
 
-      outfile << "\%depth" << std::endl;
+      outfile << "\%d1" << std::endl;
       outfile << "A(:,:,2) = [";
       for (unsigned int i = 0; i < _width; ++i)
       {
         for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
         {
-          float2 cur_val = matrix_arr[i+j*_width];
-          float out_val = cur_val.y;
+          float out_val = matrix_arr[i+j*_width].d1;
           outfile << out_val << " ";
         }
         outfile << "; ";
       }
       outfile << "];"<< std::endl;
+
+      outfile << "\%d2min" << std::endl;
+      outfile << "A(:,:,3) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float out_val = matrix_arr[i+j*_width].d2min;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+      
+      outfile << "\%d2max" << std::endl;
+      outfile << "A(:,:,4) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float out_val = matrix_arr[i+j*_width].d2max;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+
+      outfile << "\%worldlocx" << std::endl;
+      outfile << "A(:,:,5) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float out_val = matrix_arr[i+j*_width].world_loc.x;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+      outfile << "\%worldlocy" << std::endl;
+      outfile << "A(:,:,6) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float out_val = matrix_arr[i+j*_width].world_loc.y;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+      outfile << "\%worldlocz" << std::endl;
+      outfile << "A(:,:,7) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float out_val = matrix_arr[i+j*_width].world_loc.z;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+      outfile << "\%proj_dist" << std::endl;
+      outfile << "A(:,:,8) = [";
+      for (unsigned int i = 0; i < _width; ++i)
+      {
+        for (unsigned int j = 0; j < matrix_samp_mult * _height; ++j)
+        {
+          float out_val = matrix_arr[i+j*_width].proj_dist;
+          outfile << out_val << " ";
+        }
+        outfile << "; ";
+      }
+      outfile << "];"<< std::endl;
+
+
       outfile.close();
       matrix_val_buf->unmap();
       std::cout << "output written" << std::endl;
@@ -2057,7 +2147,7 @@ int main( int argc, char** argv )
 
   //unsigned int width = 1080u, height = 720u;
   //unsigned int width = 1600u, height = 1080u;
-  unsigned int width = 640u, height = 480u;
+  unsigned int width = 640u, height = 512u;
   //unsigned int width = 6400u, height = 4800u;
 
   std::string texture_path;
